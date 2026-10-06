@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Values of the onicost-agent chart",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "endpoint",
+    "token",
+    "kubelet",
+    "scrapeInterval",
+    "exclude",
+    "proxy",
+    "image",
+    "resources"
+  ],
+  "properties": {
+    "global": {
+      "type": "object"
+    },
+    "endpoint": {
+      "description": "Base URL of the ingestion gateway, without a trailing slash. Required: the templates fail when it is empty.",
+      "type": "string"
+    },
+    "token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["existingSecret", "secretKey"],
+      "properties": {
+        "existingSecret": {
+          "description": "Existing Secret of the release namespace that holds the agent token.",
+          "type": "string",
+          "minLength": 1
+        },
+        "secretKey": {
+          "description": "Key of the token in that Secret.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "kubelet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["insecureSkipVerify"],
+      "properties": {
+        "insecureSkipVerify": {
+          "description": "true: the kubelet certificates are not checked.",
+          "type": "boolean"
+        }
+      }
+    },
+    "scrapeInterval": {
+      "description": "Interval between two scrapes of a kubelet.",
+      "type": "string",
+      "enum": ["10s", "15s", "20s", "30s", "60s"]
+    },
+    "exclude": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespaces", "labelKeys"],
+      "properties": {
+        "namespaces": {
+          "description": "Exact names of the namespaces of which nothing is sent.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "labelKeys": {
+          "description": "Exact label keys removed before sending.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "proxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "description": "Outgoing HTTP proxy used to reach the gateway. Empty: direct connection.",
+          "type": "string"
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "description": "Empty: the appVersion of the chart.",
+          "type": "string"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"]
+        }
+      }
+    },
+    "resources": {
+      "description": "ResourceRequirements of the agent container.",
+      "type": "object"
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "podAnnotations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "podLabels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "priorityClassName": {
+      "type": "string"
+    },
+    "nodeSelector": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "tolerations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "affinity": {
+      "type": "object"
+    }
+  }
+}

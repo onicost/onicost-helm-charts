@@ -1,0 +1,9 @@
+# Files left out of the packaged chart.
+.DS_Store
+.git
+*.swp
+*.tgz
+*.bak
+*.tmp
+*.orig
+*~

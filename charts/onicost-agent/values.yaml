@@ -1,0 +1,56 @@
+# Values of the Onicost agent chart. values.schema.json rejects unknown keys at the top level and in the
+# typed sections, so a misspelled key fails the install or the upgrade; the free-form objects (resources,
+# affinity, tolerations, global) accept any content.
+
+# Required: base URL of the ingestion gateway, without a trailing "/". The
+# agent adds /v1/ingest/usage and /v1/ingest/inventory to it.
+endpoint: ""
+
+# The agent token is read from an existing Secret of the release namespace,
+# created by the install command. The chart never creates this Secret and
+# accepts no token value.
+token:
+  existingSecret: onicost-agent-token
+  # Key of the token in the Secret, mounted as the file "token".
+  secretKey: token
+
+kubelet:
+  # false: the certificate of each kubelet is checked with the cluster
+  # authority. true: no check, for kubelets with self-signed certificates.
+  insecureSkipVerify: false
+
+# Interval between two scrapes of a kubelet: 10s, 15s, 20s, 30s or 60s.
+scrapeInterval: 30s
+
+exclude:
+  # Exact names of the namespaces of which nothing is sent.
+  namespaces: []
+  # Exact label keys removed from every label set before sending.
+  labelKeys: []
+
+proxy:
+  # Outgoing HTTP proxy (http:// or https://), used only to reach the
+  # gateway. Empty: direct connection.
+  url: ""
+
+image:
+  repository: ghcr.io/samytsb/onicost-agent
+  # Empty: the appVersion of the chart.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+# Standard keys of the pod, empty by default.
+imagePullSecrets: []
+podAnnotations: {}
+podLabels: {}
+priorityClassName: ""
+nodeSelector: {}
+tolerations: []
+affinity: {}

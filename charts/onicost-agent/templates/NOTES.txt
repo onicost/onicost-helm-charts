@@ -1,0 +1,6 @@
+The Onicost agent {{ .Chart.AppVersion }} is installed in the namespace {{ .Release.Namespace }}.
+It reads its token from the Secret {{ .Values.token.existingSecret }}: its pod stays in ContainerCreating until that Secret exists.
+
+Troubleshooting:
+  kubectl --namespace {{ .Release.Namespace }} get pods
+  kubectl --namespace {{ .Release.Namespace }} logs deployment/{{ include "onicost-agent.fullname" . }}

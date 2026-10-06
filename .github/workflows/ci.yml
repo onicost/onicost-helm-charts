@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push on the same branch cancels the run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.0
+      - run: helm lint charts/onicost-agent --strict
+      - name: Render the chart
+        run: helm template onicost-agent charts/onicost-agent --set endpoint=https://ingest.example.test > /dev/null
+      - name: The schema refuses an unknown key
+        run: |
+          if helm template onicost-agent charts/onicost-agent --set endpoint=https://ingest.example.test --set unknown=1 > /dev/null; then
+            echo 'schema did not refuse an unknown key'
+            exit 1
+          fi

@@ -1,0 +1,18 @@
+apiVersion: v2
+name: onicost-agent
+description: Onicost agent, which collects the inventory and the CPU and memory usage of a Kubernetes cluster and pushes them to the Onicost ingestion gateway.
+type: application
+# version, appVersion, the version of the agent and the tag of the image are
+# always the same.
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.22.0-0"
+home: https://github.com/samytsb/onicost-helm-charts
+sources:
+  - https://github.com/samytsb/onicost-helm-charts
+maintainers:
+  - name: Onicost
+keywords:
+  - finops
+  - kubernetes
+  - cost
