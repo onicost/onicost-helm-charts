@@ -2,7 +2,7 @@
 Name of every object of the chart: the name of the release.
 */}}
 {{- define "onicost-agent.fullname" -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- .Release.Name -}}
 {{- end -}}
 
 {{/*
@@ -36,5 +36,5 @@ that podLabels can never change the selector.
 */}}
 {{- define "onicost-agent.podLabels" -}}
 {{- $labels := include "onicost-agent.labels" . | fromYaml -}}
-{{- toYaml (merge $labels .Values.podLabels) -}}
+{{- toYaml (merge $labels (.Values.podLabels | default dict)) -}}
 {{- end -}}

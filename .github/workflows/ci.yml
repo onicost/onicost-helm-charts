@@ -18,18 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: v4.3.0
-      - run: helm lint charts/onicost-agent --strict
-      - name: Render the chart
-        run: helm template onicost-agent charts/onicost-agent --set endpoint=https://ingest.example.test > /dev/null
-      - name: The schema refuses an unknown key
-        run: |
-          if helm template onicost-agent charts/onicost-agent --set endpoint=https://ingest.example.test --set unknown=1 > /dev/null; then
-            echo 'schema did not refuse an unknown key'
-            exit 1
-          fi
+      - name: Check the chart
+        run: ./scripts/check.sh

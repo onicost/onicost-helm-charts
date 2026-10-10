@@ -1,4 +1,4 @@
-The Onicost agent {{ .Chart.AppVersion }} is installed in the namespace {{ .Release.Namespace }}.
+The Onicost agent {{ .Values.image.tag | default .Chart.AppVersion }} is installed in the namespace {{ .Release.Namespace }}.
 It reads its token from the Secret {{ .Values.token.existingSecret }}: its pod stays in ContainerCreating until that Secret exists.
 
 Troubleshooting:

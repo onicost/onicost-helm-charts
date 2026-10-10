@@ -1,6 +1,6 @@
 # Values of the Onicost agent chart. values.schema.json rejects unknown keys at the top level and in the
-# typed sections, so a misspelled key fails the install or the upgrade; the free-form objects (resources,
-# affinity, tolerations, global) accept any content.
+# typed sections, so a misspelled key fails the install or the upgrade. resources, affinity and the items of
+# tolerations follow the Kubernetes objects and are not checked key by key; global is accepted and not read.
 
 # Required: base URL of the ingestion gateway, without a trailing "/". The
 # agent adds /v1/ingest/usage and /v1/ingest/inventory to it.

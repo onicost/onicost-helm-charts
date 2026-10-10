@@ -1,0 +1,10 @@
+# Dependabot: weekly version updates of the GitHub Actions, and security updates.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+

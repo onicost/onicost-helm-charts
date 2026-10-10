@@ -19,31 +19,65 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: v4.3.0
-      - name: Check that the tag matches the chart version
+      - name: Check the tag against Chart.yaml and the CHANGELOG
         id: version
         run: |
           version="${GITHUB_REF_NAME#onicost-agent-}"
-          chart_version="$(helm show chart charts/onicost-agent | sed -n 's/^version: *//p' | tr -d '"')"
-          app_version="$(helm show chart charts/onicost-agent | sed -n 's/^appVersion: *//p' | tr -d '"')"
+          chart="$(helm show chart charts/onicost-agent)"
+          chart_version="$(sed -n 's/^version: *//p' <<< "$chart" | tr -d '"')"
+          app_version="$(sed -n 's/^appVersion: *//p' <<< "$chart" | tr -d '"')"
           if [ "$version" != "$chart_version" ] || [ "$version" != "$app_version" ]; then
             echo "tag $GITHUB_REF_NAME does not match version $chart_version and appVersion $app_version of Chart.yaml"
             exit 1
           fi
+          # A release candidate needs no CHANGELOG entry.
+          if [ "${version%%-*}" = "$version" ] && ! grep -qF "## [${version}]" CHANGELOG.md; then
+            echo "CHANGELOG.md has no entry for $version"
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      # Chart version N deploys the image N: the agent release must have published it, publicly.
+      # The agent image package may be private: inspect it with the job token.
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check that the agent image is published
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        # A 403 means the package is private and this repository's token cannot read it (the image lives
+        # in another repository): the check is skipped with a warning until the package is public.
+        run: |
+          if out="$(docker buildx imagetools inspect "ghcr.io/samytsb/onicost-agent:${VERSION}" 2>&1 > /dev/null)"; then
+            echo "agent image ${VERSION} is published"
+          elif echo "$out" | grep -qE '403|denied'; then
+            echo "::warning::cannot read ghcr.io/samytsb/onicost-agent:${VERSION} (package private to another repository); make it public to enable this check"
+          else
+            echo "$out"; exit 1
+          fi
       # The same checks as ci.yml: a tag on a commit that never passed them must not publish a chart.
-      - run: helm lint charts/onicost-agent --strict
-      - run: helm template onicost-agent charts/onicost-agent --set endpoint=https://ingest.example.test > /dev/null
+      - name: Check the chart
+        run: ./scripts/check.sh
       - run: helm package charts/onicost-agent
       - name: Log in to ghcr.io
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: helm registry login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<< "$GITHUB_TOKEN"
+      - name: Refuse to overwrite a published version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if helm show chart oci://ghcr.io/samytsb/charts/onicost-agent --version "$VERSION" > /dev/null 2>&1; then
+            echo "version $VERSION is already published"
+            exit 1
+          fi
       - name: Push the chart
         env:
           VERSION: ${{ steps.version.outputs.version }}

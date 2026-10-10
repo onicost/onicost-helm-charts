@@ -1,0 +1,38 @@
+# Every optional value of the onicost-agent chart set, so that scripts/check.sh renders each optional branch.
+endpoint: https://ingest.example.test
+kubelet:
+  insecureSkipVerify: true
+scrapeInterval: 15s
+exclude:
+  namespaces: [kube-system, monitoring]
+  labelKeys: [team, example.com/owner]
+proxy:
+  url: http://proxy.internal:3128
+image:
+  tag: 0.2.0-rc.1
+  pullPolicy: Always
+imagePullSecrets:
+  - name: registry
+podAnnotations:
+  example.com/team: ops
+podLabels:
+  team: ops
+  app.kubernetes.io/name: other
+priorityClassName: system-cluster-critical
+nodeSelector:
+  kubernetes.io/os: linux
+tolerations:
+  - key: dedicated
+    operator: Equal
+    value: ops
+    effect: NoSchedule
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/arch
+              operator: In
+              values: [amd64, arm64]
+global:
+  imageRegistry: registry.example.com
