@@ -4,7 +4,7 @@ The Onicost agent observes the cluster it runs in, collects the CPU and memory u
 
 The chart is published in OCI format: `oci://ghcr.io/samytsb/charts/onicost-agent`.
 
-Its objects carry the release name (`onicost-agent` with the install command). The ServiceAccount and the Deployment are created in the release namespace, the ClusterRole and the ClusterRoleBinding at the cluster level:
+Its objects carry the release name (`onicost-agent` with the install command). The ServiceAccount, the Deployment and the optional NetworkPolicy are created in the release namespace, the ClusterRole and the ClusterRoleBinding at the cluster level:
 
 | Object | Role |
 |---|---|
@@ -12,6 +12,7 @@ Its objects carry the release name (`onicost-agent` with the install command). T
 | ClusterRole `onicost-agent` | Read-only (`get`, `list`, `watch`) on nodes, pods, namespaces, `apps` and `batch` controllers, PVs and PVCs; `get` on `nodes/metrics`. No access to Secrets or ConfigMaps, no write permission |
 | ClusterRoleBinding `onicost-agent` | Binds the ClusterRole to the ServiceAccount |
 | Deployment `onicost-agent` | One replica, `Recreate` strategy, non-root container (`65532`), read-only root filesystem, no capabilities, seccomp `RuntimeDefault`: `restricted` level of the Pod Security Standards |
+| NetworkPolicy `onicost-agent` | Only with `networkPolicy.enabled=true`: the egress the agent needs in a namespace that denies traffic by default, see [Network policies](#network-policies) |
 
 The chart creates neither the namespace nor the token Secret, and accepts no token value.
 
@@ -34,7 +35,7 @@ To move to another chart version, rerun only the `helm` part of the command with
 
 ## Values
 
-`values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type: a typo in these keys makes `helm upgrade` fail without changing the release. `resources`, `affinity` and the items of `tolerations` follow the Kubernetes objects and are not checked key by key.
+`values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image`, `networkPolicy`, `networkPolicy.dns` and the items of `imagePullSecrets`, as well as any value of the wrong type: a typo in these keys makes `helm upgrade` fail without changing the release. `resources`, `affinity` and the items of `tolerations`, `networkPolicy.extraEgress` and `networkPolicy.metricsFrom` follow the Kubernetes objects and are not checked key by key.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -57,6 +58,13 @@ To move to another chart version, rerun only the `helm` part of the command with
 | `nodeSelector` | `{}` | Node selector of the pod, string values |
 | `tolerations` | `[]` | Pod tolerations |
 | `affinity` | `{}` | Pod affinity |
+| `networkPolicy.enabled` | `false` | `true`: creates a NetworkPolicy for the agent pod, see [Network policies](#network-policies) |
+| `networkPolicy.dns.namespaceSelector` | `kubernetes.io/metadata.name: kube-system` | Labels of the namespace of the cluster DNS pods. Empty or `null`: every namespace |
+| `networkPolicy.dns.podSelector` | `k8s-app: kube-dns` | Labels of the cluster DNS pods. Empty or `null`: every pod. Both selectors empty: port `53` to any destination |
+| `networkPolicy.egressPorts` | `[443, 6443, 10250]` | TCP ports allowed in egress: API server, kubelets and gateway. Empty: no such rule |
+| `networkPolicy.egressCidrs` | `[]` | CIDRs the egress ports are restricted to. Empty: any destination |
+| `networkPolicy.extraEgress` | `[]` | `NetworkPolicyEgressRule` objects appended as-is to the egress rules |
+| `networkPolicy.metricsFrom` | `[]` | `NetworkPolicyPeer` objects allowed to reach the port `http` (`8080`). Empty: no ingress rule, and the policy does not restrict ingress |
 
 The `global` key is accepted, for use as a subchart, and is not read.
 
@@ -86,6 +94,32 @@ Port `8080`, named `http`, serves:
 The chart creates no Service. For a Prometheus that discovers pods through the `prometheus.io/*` annotations, pass them as strings: `--set-string 'podAnnotations.prometheus\.io/scrape=true' --set-string 'podAnnotations.prometheus\.io/port=8080'`. With `--set`, `true` and `8080` become a boolean and a number, which the schema refuses.
 
 As long as the token Secret does not exist, the pod stays in `ContainerCreating` (`FailedMount` event). A new token written to the Secret reaches the mounted file within one to two minutes, without restarting the pod.
+
+## Network policies
+
+In a namespace that denies traffic by default, typically with a `default-deny-all` NetworkPolicy that Kyverno or a similar policy engine generates in every namespace, the agent reaches nothing: its inventory caches never sync, `/readyz` keeps answering `503` and the pod stays not ready. With `networkPolicy.enabled=true`, the chart creates a NetworkPolicy, named after the release, that selects the agent pod and allows the traffic it needs:
+
+| Destination | Port | Values |
+|---|---|---|
+| Cluster DNS | UDP and TCP `53` | `networkPolicy.dns` |
+| Kubernetes API server | TCP `6443`, or `443` on some clouds | `networkPolicy.egressPorts`, `networkPolicy.egressCidrs` |
+| Kubelets, on the node addresses | TCP `10250` | `networkPolicy.egressPorts`, `networkPolicy.egressCidrs` |
+| Ingestion gateway | TCP `443` | `networkPolicy.egressPorts`, `networkPolicy.egressCidrs` |
+
+```bash
+helm upgrade --install onicost-agent oci://ghcr.io/samytsb/charts/onicost-agent --version <version> \
+  --namespace onicost --reset-then-reuse-values --set endpoint=<gateway URL> --set networkPolicy.enabled=true
+```
+
+NetworkPolicies are additive: this one allows these flows for the agent pod alone, on top of the other policies of the namespace, a default deny included. It isolates the pod in egress only, and in ingress as well when `networkPolicy.metricsFrom` is set. The probes come from the kubelet of the node and need no rule.
+
+- **API server.** Most network plugins apply the policies after the translation of the `kubernetes` Service: the allowed port is that of its endpoints, `6443` on many clusters, not the port `443` of the Service. The endpoints: `kubectl get endpointslices --namespace default --selector kubernetes.io/service-name=kubernetes`. Add their port to `egressPorts` when it is neither `443` nor `6443`.
+- **Kubelets.** The agent reads the port published by each node, `10250` by default: `kubectl get nodes -o jsonpath='{.items[*].status.daemonEndpoints.kubeletEndpoint.Port}'`.
+- **DNS.** The defaults match CoreDNS (`k8s-app: kube-dns` in `kube-system`). Helm merges these maps with the defaults: to replace a label, set the default one to `null`: `--set networkPolicy.dns.podSelector.k8s-app=null --set networkPolicy.dns.podSelector.app=coredns`. With NodeLocal DNSCache or a resolver outside the cluster, clear both selectors, which allows port `53` to any destination: `--set networkPolicy.dns.namespaceSelector=null --set networkPolicy.dns.podSelector=null`.
+- **Proxy.** With `proxy.url`, the agent reaches the proxy instead of the gateway: add the port of the proxy to `egressPorts`.
+- **Address allow-list.** `egressCidrs` restricts the ports to these ranges, which must then cover the endpoints of the API server, the node addresses and the gateway, or the proxy: `--set 'networkPolicy.egressCidrs={10.0.0.0/8,203.0.113.10/32}'`. Some network plugins do not match the node addresses with an `ipBlock` by default, Cilium for one: keep `egressCidrs` empty with them.
+- **Other flows.** `extraEgress` appends egress rules as they are written, for example to a destination these rules do not cover.
+- **Metrics.** To let a Prometheus of another namespace scrape `/metrics`: `--set-json 'networkPolicy.metricsFrom=[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"monitoring"}}}]'`.
 
 ## Troubleshooting
 

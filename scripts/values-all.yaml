@@ -34,5 +34,28 @@ affinity:
             - key: kubernetes.io/arch
               operator: In
               values: [amd64, arm64]
+networkPolicy:
+  enabled: true
+  dns:
+    namespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    podSelector:
+      k8s-app: coredns
+  egressPorts: [443, 6443, 10250, 3128]
+  egressCidrs: [10.0.0.0/8, 192.0.2.10/32]
+  extraEgress:
+    - ports:
+        - port: 53
+          protocol: UDP
+      to:
+        - ipBlock:
+            cidr: 169.254.20.10/32
+  metricsFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
 global:
   imageRegistry: registry.example.com

@@ -1,0 +1,75 @@
+{{- /*
+Traffic of the agent in a namespace that denies traffic by default: the cluster DNS, then the API server, the
+kubelets and the gateway on egressPorts. The probes come from the kubelet and need no rule.
+*/ -}}
+{{- with .Values.networkPolicy }}
+{{- if .enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "onicost-agent.fullname" $ }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "onicost-agent.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "onicost-agent.selectorLabels" $ | nindent 6 }}
+  policyTypes:
+    - Egress
+    {{- if .metricsFrom }}
+    - Ingress
+    {{- end }}
+  egress:
+    # Cluster DNS.
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+      {{- if or .dns.namespaceSelector .dns.podSelector }}
+      {{- /* Both selectors are always set: a podSelector alone would only match the release namespace. */}}
+      to:
+        - namespaceSelector:
+            {{- with .dns.namespaceSelector }}
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+            {{- else }} {}
+            {{- end }}
+          podSelector:
+            {{- with .dns.podSelector }}
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+            {{- else }} {}
+            {{- end }}
+      {{- end }}
+    {{- /* Without ports, the rule would allow every port. */}}
+    {{- if .egressPorts }}
+    # API server, kubelets and gateway.
+    - ports:
+        {{- range .egressPorts }}
+        - port: {{ int . }}
+          protocol: TCP
+        {{- end }}
+      {{- with .egressCidrs }}
+      to:
+        {{- range . }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- with .extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .metricsFrom }}
+  ingress:
+    # Metrics.
+    - from:
+        {{- toYaml . | nindent 8 }}
+      ports:
+        - port: http
+          protocol: TCP
+  {{- end }}
+{{- end }}
+{{- end }}

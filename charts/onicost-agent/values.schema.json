@@ -11,7 +11,8 @@
     "exclude",
     "proxy",
     "image",
-    "resources"
+    "resources",
+    "networkPolicy"
   ],
   "properties": {
     "global": {
@@ -155,6 +156,68 @@
     },
     "affinity": {
       "type": "object"
+    },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "dns", "egressPorts", "egressCidrs", "extraEgress", "metricsFrom"],
+      "properties": {
+        "enabled": {
+          "description": "true: a NetworkPolicy is created for the agent pod.",
+          "type": "boolean"
+        },
+        "dns": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "namespaceSelector": {
+              "description": "Labels of the namespace of the cluster DNS pods. Empty or null: every namespace.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "podSelector": {
+              "description": "Labels of the cluster DNS pods. Empty or null: every pod. Both selectors empty: port 53 to any destination.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "egressPorts": {
+          "description": "TCP ports allowed in egress: API server, kubelets and gateway. Empty: no such rule.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "egressCidrs": {
+          "description": "CIDRs the egress ports are restricted to. Empty: any destination.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9A-Fa-f.:]+/[0-9]{1,3}$"
+          }
+        },
+        "extraEgress": {
+          "description": "NetworkPolicyEgressRule objects appended as-is.",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "metricsFrom": {
+          "description": "NetworkPolicyPeer objects allowed to reach the metrics port. Empty: no ingress rule.",
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
     }
   }
 }

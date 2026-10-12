@@ -50,15 +50,15 @@ helm template onicost-agent charts/onicost-agent --set endpoint=https://ingest.e
 
 ## Release
 
-Versions follow semantic versioning. The chart `version` and `appVersion` move together with the agent image: chart version `0.2.0` deploys the image `ghcr.io/samytsb/onicost-agent:0.2.0`.
+Versions follow semantic versioning. The chart `appVersion` is the version of the agent image it deploys, and the chart `version` moves with it: chart version `0.2.0` deploys the image `ghcr.io/samytsb/onicost-agent:0.2.0`. A change of the chart alone bumps only its `version`: chart version `0.2.1` still deploys the image `0.2.0`.
 
 To release a version:
 
-1. Release the agent first: tag `v<version>` in onicost-agent, whose image package must be public.
-2. Update `version` and `appVersion` in `charts/onicost-agent/Chart.yaml`, and the [CHANGELOG](CHANGELOG.md) (a release candidate `X.Y.Z-rc.N` needs no entry).
-3. Push the tag `onicost-agent-<version>`.
+1. For a new agent version, release the agent first: tag `v<version>` in onicost-agent, whose image package must be public, then set `appVersion` to that version in `charts/onicost-agent/Chart.yaml`.
+2. Update `version` in `charts/onicost-agent/Chart.yaml`, and the [CHANGELOG](CHANGELOG.md) (a release candidate `X.Y.Z-rc.N` needs no entry).
+3. Push the tag `onicost-agent-<version>`, where `<version>` is the chart `version`.
 
-The `release` workflow checks that the tag matches the chart, that the CHANGELOG has an entry for the version and that the image `ghcr.io/samytsb/onicost-agent:<version>` exists, runs `scripts/check.sh`, then packages the chart and pushes it to `oci://ghcr.io/samytsb/charts`, unless that version is already published.
+The `release` workflow checks that the tag matches the chart `version`, that a final chart version does not deploy a release candidate, that the CHANGELOG has an entry for the version and that the image `ghcr.io/samytsb/onicost-agent:<appVersion>` exists, runs `scripts/check.sh`, then packages the chart and pushes it to `oci://ghcr.io/samytsb/charts`, unless that version is already published.
 
 ## License
 

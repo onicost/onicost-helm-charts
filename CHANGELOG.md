@@ -4,6 +4,22 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-12
+
+### Added
+
+- Optional NetworkPolicy for the agent pod, for namespaces that deny traffic by default, where the agent otherwise never becomes ready: `networkPolicy.enabled`, `false` by default. It allows egress to the cluster DNS (`networkPolicy.dns`) and to the TCP ports of the API server, the kubelets and the gateway (`networkPolicy.egressPorts`, `443`, `6443` and `10250` by default), optionally restricted to `networkPolicy.egressCidrs`, appends `networkPolicy.extraEgress`, and allows ingress on the metrics port from `networkPolicy.metricsFrom`. `values.schema.json` rejects unknown keys in `networkPolicy` and `networkPolicy.dns`, ports outside `1`-`65535` and CIDRs without a prefix length.
+- The chart README explains when to enable the NetworkPolicy, what the agent must reach and how to adapt the values.
+
+### Changed
+
+- The chart deploys the agent 0.2.1: a connectivity report at startup and explicit warnings when the API server, the kubelets or the gateway are unreachable (with the flow to open), a `/readyz` body that says why the agent is not ready, and kubelet certificates without IP SAN verified by the host name of the node (then, when the ClusterRole grants `get` on `nodes/proxy`, scraped through the API server proxy). OVHcloud MKS nodes are marked on-demand.
+
+### Changed
+
+- The chart still deploys the image `ghcr.io/samytsb/onicost-agent:0.2.0`.
+- The `release` workflow accepts a chart `version` that differs from its `appVersion`, for a change of the chart alone; a final chart version still cannot deploy a release candidate.
+
 ## [0.2.0] - 2026-10-10
 
 ### Added
@@ -34,6 +50,7 @@ All notable changes to this repository are documented here. The format follows [
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.0...HEAD
+[Unreleased]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.1...HEAD
+[0.2.1]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.0...onicost-agent-0.2.1
 [0.2.0]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.1.0...onicost-agent-0.2.0
 [0.1.0]: https://github.com/samytsb/onicost-helm-charts/tree/onicost-agent-0.1.0

@@ -1,6 +1,7 @@
 # Values of the Onicost agent chart. values.schema.json rejects unknown keys at the top level and in the
 # typed sections, so a misspelled key fails the install or the upgrade. resources, affinity and the items of
-# tolerations follow the Kubernetes objects and are not checked key by key; global is accepted and not read.
+# tolerations, networkPolicy.extraEgress and networkPolicy.metricsFrom follow the Kubernetes objects and are
+# not checked key by key; global is accepted and not read.
 
 # Required: base URL of the ingestion gateway, without a trailing "/". The
 # agent adds /v1/ingest/usage and /v1/ingest/inventory to it.
@@ -54,3 +55,28 @@ priorityClassName: ""
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# NetworkPolicy of the agent pod, for a namespace that denies traffic by
+# default. false: no NetworkPolicy is created.
+networkPolicy:
+  enabled: false
+  # Egress to the cluster DNS, UDP and TCP 53: labels of the namespace and
+  # labels of the DNS pods. Helm merges these maps with the defaults: set a
+  # label to null to drop it, or a selector to null to clear it. An empty
+  # selector matches every namespace or every pod; both empty: port 53 to any
+  # destination.
+  dns:
+    namespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    podSelector:
+      k8s-app: kube-dns
+  # TCP ports the agent must reach: the API server (6443, or 443 on some
+  # clouds), the kubelets (10250) and the gateway (443). Empty: no such rule.
+  egressPorts: [443, 6443, 10250]
+  # Optional CIDR allow-list for the ports above. Empty: any destination.
+  egressCidrs: []
+  # Extra egress rules (NetworkPolicyEgressRule objects), appended as-is.
+  extraEgress: []
+  # Peers (NetworkPolicyPeer objects) allowed to reach the metrics port, http.
+  # Empty: no ingress rule; the probes come from the kubelet and need none.
+  metricsFrom: []
