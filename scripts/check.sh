@@ -175,6 +175,21 @@ if grep -q 'API server' <<< "$policy"; then
   exit 1
 fi
 
+# get on nodes/proxy, which opens the whole kubelet API, is granted only with kubelet.apiServerProxy.
+clusterrole() {
+  helm template onicost-agent "$chart" --show-only templates/clusterrole.yaml "$@"
+}
+if clusterrole "${endpoint[@]}" | grep -q 'nodes/proxy'; then
+  echo 'nodes/proxy granted while kubelet.apiServerProxy is false' >&2
+  exit 1
+fi
+same 'nodes/proxy rule' "$(cat <<'EOF'
+  - apiGroups: [""]
+    resources: [nodes/proxy]
+    verbs: [get]
+EOF
+)" "$(clusterrole "${endpoint[@]}" --set kubelet.apiServerProxy=true | grep -B1 -A1 'nodes/proxy')"
+
 refuses 'endpoint is required'
 refuses 'endpoint is required' --set endpoint=
 refuses schema --set endpoint=ingest.example.test
@@ -183,6 +198,7 @@ refuses schema "${endpoint[@]}" --set unknown=1
 refuses schema "${endpoint[@]}" --set token.value=x
 refuses schema "${endpoint[@]}" --set token.existingSecrets=x
 refuses schema "${endpoint[@]}" --set kubelet.insecureSkipVerfy=true
+refuses schema "${endpoint[@]}" --set-string kubelet.apiServerProxy=true
 refuses schema "${endpoint[@]}" --set 'exclude.namespace={a}'
 refuses schema "${endpoint[@]}" --set proxy.uri=x
 refuses schema "${endpoint[@]}" --set image.tags=x

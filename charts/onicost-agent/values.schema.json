@@ -43,10 +43,14 @@
     "kubelet": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["insecureSkipVerify"],
+      "required": ["insecureSkipVerify", "apiServerProxy"],
       "properties": {
         "insecureSkipVerify": {
           "description": "true: the kubelet certificates are not checked.",
+          "type": "boolean"
+        },
+        "apiServerProxy": {
+          "description": "true: the ClusterRole grants get on nodes/proxy, for the kubelets scraped through the API server proxy.",
           "type": "boolean"
         }
       }

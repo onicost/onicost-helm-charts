@@ -1,6 +1,6 @@
 # Onicost agent Helm chart
 
-The Onicost agent observes the cluster it runs in, collects the CPU and memory usage from the kubelets and pushes the inventory and the samples to the Onicost ingestion gateway, once a minute.
+The Onicost agent observes the cluster it runs in, collects the CPU and memory usage from the kubelets and the GPU capacity of the nodes, and pushes the inventory and the samples to the Onicost ingestion gateway, once a minute.
 
 The chart is published in OCI format: `oci://ghcr.io/samytsb/charts/onicost-agent`.
 
@@ -9,7 +9,7 @@ Its objects carry the release name (`onicost-agent` with the install command). T
 | Object | Role |
 |---|---|
 | ServiceAccount `onicost-agent` | Identity of the agent |
-| ClusterRole `onicost-agent` | Read-only (`get`, `list`, `watch`) on nodes, pods, namespaces, `apps` and `batch` controllers, PVs and PVCs; `get` on `nodes/metrics`. No access to Secrets or ConfigMaps, no write permission |
+| ClusterRole `onicost-agent` | Read-only (`get`, `list`, `watch`) on nodes, pods, namespaces, `apps` and `batch` controllers, PVs and PVCs; `get` on `nodes/metrics`, and on `nodes/proxy` only with `kubelet.apiServerProxy=true`. No access to Secrets or ConfigMaps, no write permission |
 | ClusterRoleBinding `onicost-agent` | Binds the ClusterRole to the ServiceAccount |
 | Deployment `onicost-agent` | One replica, `Recreate` strategy, non-root container (`65532`), read-only root filesystem, no capabilities, seccomp `RuntimeDefault`: `restricted` level of the Pod Security Standards |
 | NetworkPolicy `onicost-agent` | Only with `networkPolicy.enabled=true`: the egress the agent needs in a namespace that denies traffic by default, see [Network policies](#network-policies) |
@@ -33,6 +33,17 @@ To move to another chart version, rerun only the `helm` part of the command with
 
 `--reset-then-reuse-values` starts from the default values of the requested chart version and keeps the options given before. To remove an option, set it back to its default value: `--set kubelet.insecureSkipVerify=false`, `--set-json 'exclude.namespaces=[]'` or `--set proxy.url=`.
 
+### Upgrade to 0.3.0
+
+Chart 0.3.0 deploys the agent 0.3.0, which also sends the GPU capacity of the nodes and the GPU requests of the containers, by resource (`nvidia.com/gpu`, `nvidia.com/gpu.shared`, `nvidia.com/mig-*`, `amd.com/gpu`, `gpu.intel.com/*`, `habana.ai/*`). The values, the RBAC and the network flows do not change, and nothing has to be installed on the GPU nodes besides their usual device plugin:
+
+```bash
+helm upgrade onicost-agent oci://ghcr.io/samytsb/charts/onicost-agent --version 0.3.0 \
+  --namespace onicost --reset-then-reuse-values
+```
+
+Onicost reads the GPU model and memory from the node labels (NVIDIA GPU Feature Discovery, GKE, EKS, Karpenter, AKS) and from the instance type: keep these labels out of `exclude.labelKeys`.
+
 ## Values
 
 `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image`, `networkPolicy`, `networkPolicy.dns` and the items of `imagePullSecrets`, as well as any value of the wrong type: a typo in these keys makes `helm upgrade` fail without changing the release. `resources`, `affinity` and the items of `tolerations`, `networkPolicy.extraEgress` and `networkPolicy.metricsFrom` follow the Kubernetes objects and are not checked key by key.
@@ -43,6 +54,7 @@ To move to another chart version, rerun only the `helm` part of the command with
 | `token.existingSecret` | `onicost-agent-token` | Existing Secret of the release namespace that holds the token. Not empty |
 | `token.secretKey` | `token` | Key of the token in that Secret, mounted as the file `token`. Not empty |
 | `kubelet.insecureSkipVerify` | `false` | `false`: the certificate of each kubelet is verified with the cluster authority. `true`: no verification, for kubelets with self-signed certificates |
+| `kubelet.apiServerProxy` | `false` | `true`: the ClusterRole grants `get` on `nodes/proxy`, so that a kubelet whose certificate fails the checks, neither valid for the node address or name nor signed by the cluster authority, is scraped through the API server proxy, as on Scaleway Kapsule. See [Security](#security) |
 | `scrapeInterval` | `30s` | Interval between two scrapes of a kubelet: `10s`, `15s`, `20s`, `30s` or `60s` |
 | `exclude.namespaces` | `[]` | Exact names of the namespaces of which nothing is sent: neither the namespace, nor its workloads, nor the usage of its containers, nor its PVCs and their PVs |
 | `exclude.labelKeys` | `[]` | Exact label keys removed before sending (nodes, namespaces, workloads) |
@@ -74,6 +86,7 @@ Lists on the command line: `--set 'exclude.namespaces={kube-system,monitoring}'`
 
 - The pod meets the `restricted` level of the Pod Security Standards: it is admitted in a namespace that enforces this level (`pod-security.kubernetes.io/enforce=restricted`).
 - RBAC permissions are read-only: no write permission, no access to Secrets or ConfigMaps. `GET /version` is already allowed by the `system:public-info-viewer` role.
+- **Kubelets through the API server.** When a kubelet certificate fails the checks, the agent scrapes that kubelet through the API server proxy, `GET /api/v1/nodes/<node>/proxy/metrics/resource`, which needs `get` on `nodes/proxy`. The chart grants it only with `--set kubelet.apiServerProxy=true`: this permission opens the whole kubelet API of every node, not only its metrics, such as the logs of every pod. Without it, the agent logs that the API server refused to proxy the kubelet and that node is not scraped. `kubelet.insecureSkipVerify=true` is the other way out, without the permission but without checking the kubelet certificates.
 - The token is mounted from its Secret by the kubelet: the agent reads no Secret through the API, and the token appears neither in the values nor in the release manifest.
 - **Proxy with credentials.** Credentials in `proxy.url` (`http://user:password@proxy:3128`) are accepted, but they stay in clear text in the release values: `helm get values` shows them, and the Helm release Secret contains them. The chart also renders `proxy.url` as the plain value of the `ONICOST_PROXY_URL` variable, so the credentials appear in the Deployment and pod specs (`kubectl get deployment -o yaml`, `kubectl describe pod`), readable by anyone with `get` on pods or deployments in the namespace, a wider audience than the release Secret. When that is not acceptable, use a proxy without credentials in the URL, or control access at the network level. The agent does not write the credentials to its logs.
 

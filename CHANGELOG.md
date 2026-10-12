@@ -4,6 +4,26 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-12
+
+### Added
+
+- The chart README has an upgrade note for 0.3.0: nothing changes in the values, the RBAC or the network flows.
+
+### Changed
+
+- The chart deploys the agent 0.3.0, image `ghcr.io/samytsb/onicost-agent:0.3.0`: it also sends the GPU capacity of the nodes (`status.capacity` and `status.allocatable`) and the GPU requests of the containers by resource, for the `nvidia.com/`, `amd.com/`, `gpu.intel.com/` and `habana.ai/` resources (`nvidia.com/gpu`, `nvidia.com/gpu.shared`, MIG slices). Nothing else to install on GPU nodes, and no new permission: the ClusterRole is unchanged.
+
+## [0.2.2] - 2026-10-12
+
+### Added
+
+- `kubelet.apiServerProxy`, `false` by default: `true` adds `get` on `nodes/proxy` to the ClusterRole, which the agent 0.2.1 needs to scrape through the API server proxy a kubelet whose certificate fails the checks, as on Scaleway Kapsule. This permission opens the whole kubelet API of every node; the chart README says when to grant it. `values.schema.json` accepts only a boolean.
+
+### Changed
+
+- The chart still deploys the image `ghcr.io/samytsb/onicost-agent:0.2.1`.
+
 ## [0.2.1] - 2026-10-12
 
 ### Added
@@ -14,10 +34,6 @@ All notable changes to this repository are documented here. The format follows [
 ### Changed
 
 - The chart deploys the agent 0.2.1: a connectivity report at startup and explicit warnings when the API server, the kubelets or the gateway are unreachable (with the flow to open), a `/readyz` body that says why the agent is not ready, and kubelet certificates without IP SAN verified by the host name of the node (then, when the ClusterRole grants `get` on `nodes/proxy`, scraped through the API server proxy). OVHcloud MKS nodes are marked on-demand.
-
-### Changed
-
-- The chart still deploys the image `ghcr.io/samytsb/onicost-agent:0.2.0`.
 - The `release` workflow accepts a chart `version` that differs from its `appVersion`, for a change of the chart alone; a final chart version still cannot deploy a release candidate.
 
 ## [0.2.0] - 2026-10-10
@@ -50,7 +66,9 @@ All notable changes to this repository are documented here. The format follows [
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.1...HEAD
+[Unreleased]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.3.0...HEAD
+[0.3.0]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.2...onicost-agent-0.3.0
+[0.2.2]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.1...onicost-agent-0.2.2
 [0.2.1]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.0...onicost-agent-0.2.1
 [0.2.0]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.1.0...onicost-agent-0.2.0
 [0.1.0]: https://github.com/samytsb/onicost-helm-charts/tree/onicost-agent-0.1.0

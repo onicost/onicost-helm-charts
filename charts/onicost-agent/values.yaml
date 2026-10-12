@@ -19,6 +19,11 @@ kubelet:
   # false: the certificate of each kubelet is checked with the cluster
   # authority. true: no check, for kubelets with self-signed certificates.
   insecureSkipVerify: false
+  # true: the ClusterRole grants get on nodes/proxy, so that a kubelet whose
+  # certificate fails the checks (as on Scaleway Kapsule) is scraped through
+  # the API server proxy. This permission opens the whole kubelet API of every
+  # node, not only its metrics.
+  apiServerProxy: false
 
 # Interval between two scrapes of a kubelet: 10s, 15s, 20s, 30s or 60s.
 scrapeInterval: 30s

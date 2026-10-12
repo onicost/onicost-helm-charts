@@ -1,6 +1,7 @@
 {{- /*
 Read-only access: no Secret, no ConfigMap, no write. GET /version is already
-allowed by system:public-info-viewer.
+allowed by system:public-info-viewer. get on nodes/proxy, which opens the
+whole kubelet API of every node, only with kubelet.apiServerProxy.
 */ -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -21,3 +22,9 @@ rules:
   - apiGroups: [""]
     resources: [nodes/metrics]
     verbs: [get]
+  {{- if .Values.kubelet.apiServerProxy }}
+  # Kubelets whose certificate fails the checks, scraped through the API server.
+  - apiGroups: [""]
+    resources: [nodes/proxy]
+    verbs: [get]
+  {{- end }}
