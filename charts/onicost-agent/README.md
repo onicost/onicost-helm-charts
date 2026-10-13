@@ -1,6 +1,6 @@
 # Onicost agent Helm chart
 
-The Onicost agent observes the cluster it runs in, collects the CPU and memory usage from the kubelets and the GPU capacity of the nodes, and pushes the inventory and the samples to the Onicost ingestion gateway, once a minute.
+The Onicost agent observes the cluster it runs in, collects the CPU and memory usage from the kubelets, the GPU capacity of the nodes and the size of AWS Fargate pods, and pushes the inventory and the samples to the Onicost ingestion gateway, once a minute.
 
 The chart is published in OCI format: `oci://ghcr.io/samytsb/charts/onicost-agent`.
 
@@ -32,6 +32,17 @@ Requirements: bash or zsh, Kubernetes and `kubectl` 1.22 or later, Helm 3.14 or 
 To move to another chart version, rerun only the `helm` part of the command with the new `--version` value. To change an option without touching the token, likewise rerun the `helm` part, followed by the option.
 
 `--reset-then-reuse-values` starts from the default values of the requested chart version and keeps the options given before. To remove an option, set it back to its default value: `--set kubelet.insecureSkipVerify=false`, `--set-json 'exclude.namespaces=[]'` or `--set proxy.url=`.
+
+### Upgrade to 0.4.0
+
+Chart 0.4.0 deploys the agent 0.4.0, which also sends the `ephemeral-storage` request of each container and, on the AWS Fargate nodes of an EKS cluster, the size Fargate provisions for each pod, read from the `CapacityProvisioned` annotation of the pod: Onicost prices a Fargate pod on that size, and leaves it unpriced with an older agent. It is the only annotation the agent reads, on the pods of a Fargate node only, and it is never sent as is. The values, the RBAC and the network flows do not change:
+
+```bash
+helm upgrade onicost-agent oci://ghcr.io/samytsb/charts/onicost-agent --version 0.4.0 \
+  --namespace onicost --reset-then-reuse-values
+```
+
+Onicost recognises a Fargate node by its `eks.amazonaws.com/compute-type` label, or by its `fargate-ip-` name: keep this label out of `exclude.labelKeys`. The agent reads it on the node whatever `exclude.labelKeys` says, since the exclusion only applies to what is sent.
 
 ### Upgrade to 0.3.0
 

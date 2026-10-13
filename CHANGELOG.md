@@ -4,6 +4,16 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-13
+
+### Added
+
+- The chart README has an upgrade note for 0.4.0: nothing changes in the values, the RBAC or the network flows.
+
+### Changed
+
+- The chart deploys the agent 0.4.0, image `ghcr.io/samytsb/onicost-agent:0.4.0`: it also sends the `ephemeral-storage` request of each container and, on an AWS Fargate node (label `eks.amazonaws.com/compute-type=fargate`), the size Fargate provisions for each pod, read from its `CapacityProvisioned` annotation, the only annotation the agent reads. No new permission: the agent reads the pods and the nodes it already watches, and the ClusterRole is unchanged.
+
 ## [0.3.0] - 2026-10-12
 
 ### Added
@@ -66,7 +76,8 @@ All notable changes to this repository are documented here. The format follows [
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.3.0...HEAD
+[Unreleased]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.4.0...HEAD
+[0.4.0]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.3.0...onicost-agent-0.4.0
 [0.3.0]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.2...onicost-agent-0.3.0
 [0.2.2]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.1...onicost-agent-0.2.2
 [0.2.1]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.0...onicost-agent-0.2.1
