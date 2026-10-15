@@ -12,7 +12,7 @@ All notable changes to this repository are documented here. The format follows [
 
 ### Changed
 
-- The chart deploys the agent 0.4.0, image `ghcr.io/samytsb/onicost-agent:0.4.0`: it also sends the `ephemeral-storage` request of each container and, on an AWS Fargate node (label `eks.amazonaws.com/compute-type=fargate`), the size Fargate provisions for each pod, read from its `CapacityProvisioned` annotation, the only annotation the agent reads. No new permission: the agent reads the pods and the nodes it already watches, and the ClusterRole is unchanged.
+- The chart deploys the agent 0.4.0, image `onicost-agent:0.4.0`: it also sends the `ephemeral-storage` request of each container and, on an AWS Fargate node (label `eks.amazonaws.com/compute-type=fargate`), the size Fargate provisions for each pod, read from its `CapacityProvisioned` annotation, the only annotation the agent reads. No new permission: the agent reads the pods and the nodes it already watches, and the ClusterRole is unchanged.
 
 ## [0.3.0] - 2026-10-12
 
@@ -22,9 +22,11 @@ All notable changes to this repository are documented here. The format follows [
 
 ### Changed
 
-- The chart deploys the agent 0.3.0, image `ghcr.io/samytsb/onicost-agent:0.3.0`: it also sends the GPU capacity of the nodes (`status.capacity` and `status.allocatable`) and the GPU requests of the containers by resource, for the `nvidia.com/`, `amd.com/`, `gpu.intel.com/` and `habana.ai/` resources (`nvidia.com/gpu`, `nvidia.com/gpu.shared`, MIG slices). Nothing else to install on GPU nodes, and no new permission: the ClusterRole is unchanged.
+- The chart deploys the agent 0.3.0, image `onicost-agent:0.3.0`: it also sends the GPU capacity of the nodes (`status.capacity` and `status.allocatable`) and the GPU requests of the containers by resource, for the `nvidia.com/`, `amd.com/`, `gpu.intel.com/` and `habana.ai/` resources (`nvidia.com/gpu`, `nvidia.com/gpu.shared`, MIG slices). Nothing else to install on GPU nodes, and no new permission: the ClusterRole is unchanged.
 
 ## [0.2.2] - 2026-10-12
+
+Never published: these changes ship with 0.3.0.
 
 ### Added
 
@@ -32,7 +34,7 @@ All notable changes to this repository are documented here. The format follows [
 
 ### Changed
 
-- The chart still deploys the image `ghcr.io/samytsb/onicost-agent:0.2.1`.
+- The chart still deploys the image `onicost-agent:0.2.1`.
 
 ## [0.2.1] - 2026-10-12
 
@@ -56,7 +58,7 @@ All notable changes to this repository are documented here. The format follows [
 
 ### Changed
 
-- The chart deploys the image `ghcr.io/samytsb/onicost-agent:0.2.0` by default.
+- The chart deploys the image `onicost-agent:0.2.0` by default.
 - `values.schema.json` rejects an `endpoint` or a `proxy.url` that is not an `http://` or `https://` URL, and an `endpoint` with credentials, a query or a fragment: such a value now fails `helm upgrade` instead of the agent at startup.
 - `values.schema.json` rejects an empty `image.repository`.
 - The install and pull commands of the READMEs use a `<version>` placeholder; the versions are listed in this CHANGELOG.
@@ -70,16 +72,15 @@ All notable changes to this repository are documented here. The format follows [
 
 ### Added
 
-- Chart `onicost-agent` version `0.1.0`, which deploys the image `ghcr.io/samytsb/onicost-agent:0.1.0` on Kubernetes 1.22 or later.
+- Chart `onicost-agent` version `0.1.0`, which deploys the image `onicost-agent:0.1.0` on Kubernetes 1.22 or later.
 - Created objects: ServiceAccount, read-only ClusterRole, ClusterRoleBinding, and a single-replica Deployment with the `Recreate` strategy. The namespace and the token Secret are left to the install command.
 - Secure defaults: pod at the `restricted` level of the Pod Security Standards (non-root user `65532`, read-only root filesystem, no capabilities, seccomp `RuntimeDefault`); read-only RBAC, with no access to Secrets or ConfigMaps; token read from an existing Secret, never from the values.
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.4.0...HEAD
-[0.4.0]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.3.0...onicost-agent-0.4.0
-[0.3.0]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.2...onicost-agent-0.3.0
-[0.2.2]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.1...onicost-agent-0.2.2
-[0.2.1]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.2.0...onicost-agent-0.2.1
-[0.2.0]: https://github.com/samytsb/onicost-helm-charts/compare/onicost-agent-0.1.0...onicost-agent-0.2.0
-[0.1.0]: https://github.com/samytsb/onicost-helm-charts/tree/onicost-agent-0.1.0
+[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.0...HEAD
+[0.4.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.3.0...onicost-agent-0.4.0
+[0.3.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.2.1...onicost-agent-0.3.0
+[0.2.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.2.0...onicost-agent-0.2.1
+[0.2.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.1.0...onicost-agent-0.2.0
+[0.1.0]: https://github.com/onicost/onicost-helm-charts/tree/onicost-agent-0.1.0

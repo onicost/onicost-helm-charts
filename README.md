@@ -13,19 +13,19 @@ Onicost is a SaaS FinOps application: it computes the costs of Kubernetes cluste
 
 | Chart | OCI reference | Documentation |
 |---|---|---|
-| `onicost-agent` | `oci://ghcr.io/samytsb/charts/onicost-agent` | [charts/onicost-agent/README.md](charts/onicost-agent/README.md) |
+| `onicost-agent` | `oci://ghcr.io/onicost/charts/onicost-agent` | [charts/onicost-agent/README.md](charts/onicost-agent/README.md) |
 
 The full install command, which also creates the agent token Secret, is given by the Onicost interface. Its Helm part:
 
 ```bash
-helm upgrade --install onicost-agent oci://ghcr.io/samytsb/charts/onicost-agent --version <version> \
+helm upgrade --install onicost-agent oci://ghcr.io/onicost/charts/onicost-agent --version <version> \
   --namespace onicost --reset-then-reuse-values --set endpoint=<gateway URL>
 ```
 
 Pull a given version of the chart (versions are listed in the [CHANGELOG](CHANGELOG.md)):
 
 ```bash
-helm pull oci://ghcr.io/samytsb/charts/onicost-agent --version <version>
+helm pull oci://ghcr.io/onicost/charts/onicost-agent --version <version>
 ```
 
 ## Commands
@@ -50,7 +50,7 @@ helm template onicost-agent charts/onicost-agent --set endpoint=https://ingest.e
 
 ## Release
 
-Versions follow semantic versioning. The chart `appVersion` is the version of the agent image it deploys, and the chart `version` moves with it: chart version `0.2.0` deploys the image `ghcr.io/samytsb/onicost-agent:0.2.0`. A change of the chart alone bumps only its `version`: a chart version `0.3.1` would still deploy the image `0.3.0`.
+Versions follow semantic versioning. The chart `appVersion` is the version of the agent image it deploys, and the chart `version` moves with it: chart version `0.2.0` deploys the image `ghcr.io/onicost/onicost-agent:0.2.0`. A change of the chart alone bumps only its `version`: a chart version `0.3.1` would still deploy the image `0.3.0`.
 
 To release a version:
 
@@ -58,7 +58,7 @@ To release a version:
 2. Update `version` in `charts/onicost-agent/Chart.yaml`, and the [CHANGELOG](CHANGELOG.md) (a release candidate `X.Y.Z-rc.N` needs no entry).
 3. Push the tag `onicost-agent-<version>`, where `<version>` is the chart `version`.
 
-The `release` workflow checks that the tag matches the chart `version`, that a final chart version does not deploy a release candidate, that the CHANGELOG has an entry for the version and that the image `ghcr.io/samytsb/onicost-agent:<appVersion>` exists, runs `scripts/check.sh`, then packages the chart and pushes it to `oci://ghcr.io/samytsb/charts`, unless that version is already published.
+The `release` workflow checks that the tag matches the chart `version`, that a final chart version does not deploy a release candidate, that the CHANGELOG has an entry for the version and that the image `ghcr.io/onicost/onicost-agent:<appVersion>` exists, runs `scripts/check.sh`, then packages the chart and pushes it to `oci://ghcr.io/onicost/charts`, unless that version is already published.
 
 ## License
 

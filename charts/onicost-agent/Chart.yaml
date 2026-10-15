@@ -7,9 +7,9 @@ type: application
 version: 0.4.0
 appVersion: "0.4.0"
 kubeVersion: ">=1.22.0-0"
-home: https://github.com/samytsb/onicost-helm-charts
+home: https://github.com/onicost/onicost-helm-charts
 sources:
-  - https://github.com/samytsb/onicost-helm-charts
+  - https://github.com/onicost/onicost-helm-charts
 maintainers:
   - name: Onicost
 keywords:

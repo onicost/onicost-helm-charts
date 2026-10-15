@@ -18,6 +18,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # The agent image and the charts live under the owner of this repository.
+      REGISTRY: ghcr.io/${{ github.repository_owner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,10 +64,10 @@ jobs:
         # A 403 means the package is private and this repository's token cannot read it (the image lives
         # in another repository): the check is skipped with a warning until the package is public.
         run: |
-          if out="$(docker buildx imagetools inspect "ghcr.io/samytsb/onicost-agent:${VERSION}" 2>&1 > /dev/null)"; then
+          if out="$(docker buildx imagetools inspect "${REGISTRY}/onicost-agent:${VERSION}" 2>&1 > /dev/null)"; then
             echo "agent image ${VERSION} is published"
           elif echo "$out" | grep -qE '403|denied'; then
-            echo "::warning::cannot read ghcr.io/samytsb/onicost-agent:${VERSION} (package private to another repository); make it public to enable this check"
+            echo "::warning::cannot read ${REGISTRY}/onicost-agent:${VERSION} (package private to another repository); make it public to enable this check"
           else
             echo "$out"; exit 1
           fi
@@ -80,11 +83,11 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if helm show chart oci://ghcr.io/samytsb/charts/onicost-agent --version "$VERSION" > /dev/null 2>&1; then
+          if helm show chart "oci://${REGISTRY}/charts/onicost-agent" --version "$VERSION" > /dev/null 2>&1; then
             echo "version $VERSION is already published"
             exit 1
           fi
       - name: Push the chart
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: helm push "onicost-agent-${VERSION}.tgz" oci://ghcr.io/samytsb/charts
+        run: helm push "onicost-agent-${VERSION}.tgz" "oci://${REGISTRY}/charts"

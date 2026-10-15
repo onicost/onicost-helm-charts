@@ -2,7 +2,7 @@
 
 The Onicost agent observes the cluster it runs in, collects the CPU and memory usage from the kubelets, the GPU capacity of the nodes and the size of AWS Fargate pods, and pushes the inventory and the samples to the Onicost ingestion gateway, once a minute.
 
-The chart is published in OCI format: `oci://ghcr.io/samytsb/charts/onicost-agent`.
+The chart is published in OCI format: `oci://ghcr.io/onicost/charts/onicost-agent`.
 
 Its objects carry the release name (`onicost-agent` with the install command). The ServiceAccount, the Deployment and the optional NetworkPolicy are created in the release namespace, the ClusterRole and the ClusterRoleBinding at the cluster level:
 
@@ -21,7 +21,7 @@ The chart creates neither the namespace nor the token Secret, and accepts no tok
 The full install command, with the token, is given by the Onicost interface, when a cluster is created and at each rotation of its token. It prompts for the token without echoing it, creates the `onicost` namespace and the `onicost-agent-token` Secret with server-side apply (the token goes through the standard input of `kubectl`, never through a command line or the values), then installs or upgrades the release:
 
 ```bash
-helm upgrade --install onicost-agent oci://ghcr.io/samytsb/charts/onicost-agent --version <version> \
+helm upgrade --install onicost-agent oci://ghcr.io/onicost/charts/onicost-agent --version <version> \
   --namespace onicost --reset-then-reuse-values --set endpoint=<gateway URL>
 ```
 
@@ -38,7 +38,7 @@ To move to another chart version, rerun only the `helm` part of the command with
 Chart 0.4.0 deploys the agent 0.4.0, which also sends the `ephemeral-storage` request of each container and, on the AWS Fargate nodes of an EKS cluster, the size Fargate provisions for each pod, read from the `CapacityProvisioned` annotation of the pod: Onicost prices a Fargate pod on that size, and leaves it unpriced with an older agent. It is the only annotation the agent reads, on the pods of a Fargate node only, and it is never sent as is. The values, the RBAC and the network flows do not change:
 
 ```bash
-helm upgrade onicost-agent oci://ghcr.io/samytsb/charts/onicost-agent --version 0.4.0 \
+helm upgrade onicost-agent oci://ghcr.io/onicost/charts/onicost-agent --version 0.4.0 \
   --namespace onicost --reset-then-reuse-values
 ```
 
@@ -49,7 +49,7 @@ Onicost recognises a Fargate node by its `eks.amazonaws.com/compute-type` label,
 Chart 0.3.0 deploys the agent 0.3.0, which also sends the GPU capacity of the nodes and the GPU requests of the containers, by resource (`nvidia.com/gpu`, `nvidia.com/gpu.shared`, `nvidia.com/mig-*`, `amd.com/gpu`, `gpu.intel.com/*`, `habana.ai/*`). The values, the RBAC and the network flows do not change, and nothing has to be installed on the GPU nodes besides their usual device plugin:
 
 ```bash
-helm upgrade onicost-agent oci://ghcr.io/samytsb/charts/onicost-agent --version 0.3.0 \
+helm upgrade onicost-agent oci://ghcr.io/onicost/charts/onicost-agent --version 0.3.0 \
   --namespace onicost --reset-then-reuse-values
 ```
 
@@ -70,7 +70,7 @@ Onicost reads the GPU model and memory from the node labels (NVIDIA GPU Feature 
 | `exclude.namespaces` | `[]` | Exact names of the namespaces of which nothing is sent: neither the namespace, nor its workloads, nor the usage of its containers, nor its PVCs and their PVs |
 | `exclude.labelKeys` | `[]` | Exact label keys removed before sending (nodes, namespaces, workloads) |
 | `proxy.url` | `""` | Outgoing HTTP proxy (`http://` or `https://`), used only to reach the gateway. Empty: direct connection |
-| `image.repository` | `ghcr.io/samytsb/onicost-agent` | Image repository. Not empty |
+| `image.repository` | `ghcr.io/onicost/onicost-agent` | Image repository. Not empty |
 | `image.tag` | `""` | Empty: the chart `appVersion` |
 | `image.pullPolicy` | `IfNotPresent` | `Always`, `IfNotPresent` or `Never` |
 | `resources` | requests `cpu: 50m`, `memory: 64Mi`; limits `memory: 256Mi` | Container resources. No CPU limit; the memory limit covers the send buffer (at most two hours and 64 MiB), and the agent sets the soft memory limit of the Go runtime to 90% of it |
@@ -131,7 +131,7 @@ In a namespace that denies traffic by default, typically with a `default-deny-al
 | Ingestion gateway | TCP `443` | `networkPolicy.egressPorts`, `networkPolicy.egressCidrs` |
 
 ```bash
-helm upgrade --install onicost-agent oci://ghcr.io/samytsb/charts/onicost-agent --version <version> \
+helm upgrade --install onicost-agent oci://ghcr.io/onicost/charts/onicost-agent --version <version> \
   --namespace onicost --reset-then-reuse-values --set endpoint=<gateway URL> --set networkPolicy.enabled=true
 ```
 

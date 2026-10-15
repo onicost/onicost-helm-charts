@@ -40,7 +40,7 @@ proxy:
   url: ""
 
 image:
-  repository: ghcr.io/samytsb/onicost-agent
+  repository: ghcr.io/onicost/onicost-agent
   # Empty: the appVersion of the chart.
   tag: ""
   pullPolicy: IfNotPresent
