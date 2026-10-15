@@ -1,3 +1,6 @@
+# Publishes the chart when a tag onicost-agent-<version> is pushed. To release: publish the agent image
+# first when appVersion changes, set version (and appVersion) in charts/onicost-agent/Chart.yaml, add a
+# CHANGELOG entry (none for a release candidate X.Y.Z-rc.N), then push the tag.
 name: release
 
 on:

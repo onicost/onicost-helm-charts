@@ -1,65 +1,51 @@
-# onicost-helm-charts
+# Onicost Helm charts
 
-Public Helm charts of Onicost.
-
-Onicost is a SaaS FinOps application: it computes the costs of Kubernetes clusters and suggests optimizations. The Onicost agent, installed in each monitored cluster, collects the cluster inventory and the CPU and memory usage of the containers from the kubelets, then pushes them to the Onicost ingestion gateway once a minute. It only has read permissions and accesses no Secret.
+This repository holds the Helm chart of the Onicost agent. The agent runs in each Kubernetes cluster you monitor with [Onicost](https://onicost.com): it reads the cluster inventory and the container usage with read-only permissions and sends them to Onicost once a minute.
 
 ## Requirements
 
-- Helm 3.14 or later (the CI uses Helm 4.3.0);
-- a Kubernetes 1.22 or later cluster for the installation.
+- Kubernetes 1.22 or later, and cluster-admin rights for the install
+- Helm 3.14 or later
+- The agent token of the cluster, shown in the Onicost interface when you add the cluster
 
-## Charts
-
-| Chart | OCI reference | Documentation |
-|---|---|---|
-| `onicost-agent` | `oci://ghcr.io/onicost/charts/onicost-agent` | [charts/onicost-agent/README.md](charts/onicost-agent/README.md) |
-
-The full install command, which also creates the agent token Secret, is given by the Onicost interface. Its Helm part:
+## Install
 
 ```bash
-helm upgrade --install onicost-agent oci://ghcr.io/onicost/charts/onicost-agent --version <version> \
-  --namespace onicost --reset-then-reuse-values --set endpoint=<gateway URL>
+kubectl create namespace onicost
+printf 'Agent token: ' && read -rs ONICOST_TOKEN && echo
+printf '%s' "$ONICOST_TOKEN" | kubectl create secret generic onicost-agent-token \
+  --namespace onicost --from-file=token=/dev/stdin
+helm upgrade --install onicost-agent oci://ghcr.io/onicost/charts/onicost-agent \
+  --version <version> --namespace onicost --set endpoint=https://ingest.onicost.com
 ```
 
-Pull a given version of the chart (versions are listed in the [CHANGELOG](CHANGELOG.md)):
+Replace `<version>` with the latest version in the [changelog](CHANGELOG.md). The Onicost interface gives the same command with the version filled in. The token never appears on a command line or in the Helm values.
+
+## Upgrade
 
 ```bash
-helm pull oci://ghcr.io/onicost/charts/onicost-agent --version <version>
+helm upgrade onicost-agent oci://ghcr.io/onicost/charts/onicost-agent \
+  --version <version> --namespace onicost --reset-then-reuse-values
 ```
 
-## Commands
+## Uninstall
 
 ```bash
-# Lint the chart, render it and check the refusals of the schema
-./scripts/check.sh
-
-# Render the manifests locally
-helm template onicost-agent charts/onicost-agent --set endpoint=https://ingest.example.test
+helm uninstall onicost-agent --namespace onicost
+kubectl delete namespace onicost
 ```
 
-## Layout
+## Documentation
 
-| Path | Content |
-|---|---|
-| `charts/onicost-agent/` | Onicost agent chart |
-| `scripts/check.sh` | Checks of the chart: lint, rendering and refusals of the schema |
-| `scripts/values-all.yaml` | Every optional value set, rendered by `scripts/check.sh` |
-| `.github/workflows/ci.yml` | Runs `scripts/check.sh` on every push to `main` and every pull request |
-| `.github/workflows/release.yml` | Publishes the chart to `ghcr.io` on every version tag |
+- [Install](docs/install.md): token, endpoint, proxy, network policy, checking the agent
+- [Operations](docs/operations.md): upgrades, version pinning, metrics, logs, troubleshooting
+- [Security](docs/security.md): permissions, collected data, image provenance, reporting a vulnerability
+- [Values reference](charts/onicost-agent/README.md)
 
-## Release
+## Versioning
 
-Versions follow semantic versioning. The chart `appVersion` is the version of the agent image it deploys, and the chart `version` moves with it: chart version `0.2.0` deploys the image `ghcr.io/onicost/onicost-agent:0.2.0`. A change of the chart alone bumps only its `version`: a chart version `0.3.1` would still deploy the image `0.3.0`.
-
-To release a version:
-
-1. For a new agent version, release the agent first: tag `v<version>` in onicost-agent, whose image package must be public, then set `appVersion` to that version in `charts/onicost-agent/Chart.yaml`.
-2. Update `version` in `charts/onicost-agent/Chart.yaml`, and the [CHANGELOG](CHANGELOG.md) (a release candidate `X.Y.Z-rc.N` needs no entry).
-3. Push the tag `onicost-agent-<version>`, where `<version>` is the chart `version`.
-
-The `release` workflow checks that the tag matches the chart `version`, that a final chart version does not deploy a release candidate, that the CHANGELOG has an entry for the version and that the image `ghcr.io/onicost/onicost-agent:<appVersion>` exists, runs `scripts/check.sh`, then packages the chart and pushes it to `oci://ghcr.io/onicost/charts`, unless that version is already published.
+Chart versions follow [Semantic Versioning](https://semver.org). The chart `appVersion` is the tag of the agent image it deploys; a change to the chart alone bumps the chart version only.
 
 ## License
 
-Apache License 2.0, see [LICENSE](LICENSE).
+[Apache License 2.0](LICENSE)
