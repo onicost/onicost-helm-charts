@@ -42,4 +42,4 @@ The chart itself is published to `oci://ghcr.io/onicost/charts/onicost-agent` by
 
 ## Report a vulnerability
 
-E-mail security@onicost.com with the affected version and the steps to reproduce. Do not open a public issue.
+E-mail contact@onicost.com with the affected version and the steps to reproduce. Do not open a public issue.
