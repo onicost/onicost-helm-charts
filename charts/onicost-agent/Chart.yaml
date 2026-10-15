@@ -4,8 +4,8 @@ description: Onicost agent, which collects the inventory, the GPU capacity, the 
 type: application
 # appVersion is the version of the agent and the tag of its image. version
 # moves with it, and alone when only the chart changes.
-version: 0.4.0
-appVersion: "0.4.0"
+version: 0.4.1
+appVersion: "0.4.1"
 kubeVersion: ">=1.22.0-0"
 home: https://github.com/onicost/onicost-helm-charts
 sources:

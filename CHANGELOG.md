@@ -4,6 +4,13 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-15
+
+### Changed
+
+- The chart and the agent image are published under `ghcr.io/onicost`: chart `oci://ghcr.io/onicost/charts/onicost-agent`, image `ghcr.io/onicost/onicost-agent:0.4.1`. No functional change in the chart or the agent.
+- The documentation is rewritten: a short README, install, operations and security guides under `docs/`, and the chart README as the values reference.
+
 ## [0.4.0] - 2026-10-13
 
 ### Added
@@ -78,7 +85,8 @@ Never published: these changes ship with 0.3.0.
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.0...HEAD
+[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.1...HEAD
+[0.4.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.0...onicost-agent-0.4.1
 [0.4.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.3.0...onicost-agent-0.4.0
 [0.3.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.2.1...onicost-agent-0.3.0
 [0.2.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.2.0...onicost-agent-0.2.1
