@@ -4,6 +4,13 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-16
+
+### Changed
+
+- The chart deploys the agent 0.5.1, image `ghcr.io/onicost/onicost-agent:0.5.1`. It checks at start, then every 10 minutes, which permissions of the actions mode its service account lacks, with one `SelfSubjectAccessReview` per permission, and reports them in its heartbeat (`actionsMissingPermissions`), whatever the mode; Onicost shows them on the cluster page once the actions mode is on. Its inventory gives each Deployment, StatefulSet and CronJob the hints of the scheduler: opted out by the annotation `onicost.com/scheduler: ignore`, scaled by a HorizontalPodAutoscaler (known in the actions mode only), managed by Flux or Argo CD.
+- No new permission and no change to the values or the templates: `SelfSubjectAccessReview` is granted to every authenticated identity by the default ClusterRole `system:basic-user`, and the ClusterRole of the chart is unchanged, read-only without `actions.enabled`. Upgrading from 0.5.0 keeps the values as they are (`--reset-then-reuse-values`, with `--set actions.enabled=true` where it was set); the agents 0.5.0 still work with Onicost.
+
 ## [0.5.0] - 2026-10-16
 
 ### Added
@@ -98,7 +105,8 @@ Never published: these changes ship with 0.3.0.
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.0...HEAD
+[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.1...HEAD
+[0.5.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.0...onicost-agent-0.5.1
 [0.5.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.1...onicost-agent-0.5.0
 [0.4.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.0...onicost-agent-0.4.1
 [0.4.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.3.0...onicost-agent-0.4.0
