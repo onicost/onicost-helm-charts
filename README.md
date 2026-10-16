@@ -1,6 +1,6 @@
 # Onicost Helm charts
 
-This repository holds the Helm chart of the Onicost agent. The agent runs in each Kubernetes cluster you monitor with [Onicost](https://onicost.com): it reads the cluster inventory and the container usage with read-only permissions and sends them to Onicost once a minute. An optional actions mode lets the Onicost scheduler switch workloads off and on at the times you choose.
+This repository holds the Helm chart of the Onicost agent. The agent runs in each Kubernetes cluster you monitor with [Onicost](https://onicost.com): it reads the cluster inventory and the container usage and sends them to Onicost once a minute. The agent is read-only by default. It acts only in the [actions mode](docs/security.md#actions-mode) of the Onicost scheduler, which you enable: with dedicated permissions, it switches workloads off and on at the times of the rules you activate, and each action is recorded in the scheduler journal.
 
 ## Requirements
 

@@ -1,6 +1,6 @@
 # onicost-agent
 
-Helm chart of the Onicost agent, which sends the inventory and the container usage of a Kubernetes cluster to Onicost. The agent is read-only by default; `actions.enabled` lets it switch workloads off and on for the Onicost scheduler. Install, operations and security guides: [github.com/onicost/onicost-helm-charts](https://github.com/onicost/onicost-helm-charts#documentation).
+Helm chart of the Onicost agent, which sends the inventory and the container usage of a Kubernetes cluster to Onicost. The agent is read-only by default. It acts only in the [actions mode](https://github.com/onicost/onicost-helm-charts/blob/main/docs/security.md#actions-mode) of the Onicost scheduler, which `actions.enabled` turns on: with dedicated permissions, it switches workloads off and on at the times of the rules you activate, and each action is recorded in the scheduler journal. Install, operations and security guides: [github.com/onicost/onicost-helm-charts](https://github.com/onicost/onicost-helm-charts#documentation).
 
 ```bash
 helm upgrade --install onicost-agent oci://ghcr.io/onicost/charts/onicost-agent \
