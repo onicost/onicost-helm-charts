@@ -225,22 +225,20 @@ EOF
 same 'default ClusterRole' "$read_only_role" "$(clusterrole "${endpoint[@]}")"
 same 'ClusterRole with actions.enabled=false' "$read_only_role" "$(clusterrole "${endpoint[@]}" --set actions.enabled=false)"
 
-# actions.enabled adds the write rules of the scheduler, and nothing else: no create, no delete, no Secret.
+# actions.enabled adds the patch rules of the scheduler, and nothing else: no update, no scale subresource, no create,
+# no delete, no Secret.
 same 'ClusterRole with actions.enabled' "$read_only_role
 $(cat <<'EOF'
-  # Actions mode of the scheduler: scale, suspend and annotate workloads.
+  # Actions mode of the scheduler: patch replicas, suspend, minReplicas and annotations.
   - apiGroups: [apps]
     resources: [deployments, statefulsets]
-    verbs: [patch, update]
-  - apiGroups: [apps]
-    resources: [deployments/scale, statefulsets/scale]
-    verbs: [get, patch, update]
+    verbs: [patch]
   - apiGroups: [batch]
     resources: [cronjobs]
-    verbs: [patch, update]
+    verbs: [patch]
   - apiGroups: [autoscaling]
     resources: [horizontalpodautoscalers]
-    verbs: [get, list, watch, patch, update]
+    verbs: [get, list, watch, patch]
 EOF
 )" "$(clusterrole "${endpoint[@]}" --set actions.enabled=true)"
 
