@@ -8,9 +8,9 @@ All notable changes to this repository are documented here. The format follows [
 
 ### Added
 
-- `actions.enabled`, `false` by default: the actions mode of the Onicost scheduler. `true` adds to the ClusterRole `patch` and `update` on `deployments` and `statefulsets`, `get`, `patch` and `update` on `deployments/scale` and `statefulsets/scale`, `patch` and `update` on `cronjobs`, and `get`, `list`, `watch`, `patch` and `update` on `horizontalpodautoscalers`, and nothing else: no create, no delete, no Secret, ConfigMap or custom resource. `values.schema.json` accepts only a boolean.
+- `actions.enabled`, `false` by default: the actions mode of the Onicost scheduler. `true` adds to the ClusterRole `patch` on `deployments`, `statefulsets` and `cronjobs`, and `get`, `list`, `watch` and `patch` on `horizontalpodautoscalers`, and nothing else: no update, no scale subresource, no create, no delete, no Secret, ConfigMap or custom resource. `values.schema.json` accepts only a boolean.
 - The Deployment sets `ONICOST_ACTIONS_ENABLED` from `actions.enabled`, and `ONICOST_NAMESPACE`, the namespace of the agent, which the scheduler never touches, from the downward API.
-- `docs/security.md` describes the actions mode: what the agent does with these permissions, what it never does, and how to leave the mode. `docs/install.md` gives the `helm upgrade` command with `--set actions.enabled=true`.
+- `docs/security.md` describes the actions mode: what the agent does with these permissions, what it never does, how to leave the mode, and an optional ValidatingAdmissionPolicy (Kubernetes 1.30 or later) that rejects any other change by the agent. `docs/install.md` gives the `helm upgrade` command with `--set actions.enabled=true`.
 
 ### Changed
 
