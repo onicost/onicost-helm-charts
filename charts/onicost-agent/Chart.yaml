@@ -1,11 +1,11 @@
 apiVersion: v2
 name: onicost-agent
-description: Onicost agent, which collects the inventory, the GPU capacity, the size of AWS Fargate pods and the CPU and memory usage of a Kubernetes cluster and pushes them to the Onicost ingestion gateway.
+description: Onicost agent, which collects the inventory, the GPU capacity, the size of AWS Fargate pods and the CPU and memory usage of a Kubernetes cluster and pushes them to the Onicost ingestion gateway. Read-only by default; the optional actions mode lets it switch workloads off and on for the Onicost scheduler.
 type: application
 # appVersion is the version of the agent and the tag of its image. version
 # moves with it, and alone when only the chart changes.
-version: 0.4.1
-appVersion: "0.4.1"
+version: 0.5.0
+appVersion: "0.5.0"
 kubeVersion: ">=1.22.0-0"
 home: https://github.com/onicost/onicost-helm-charts
 sources:

@@ -4,6 +4,19 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-16
+
+### Added
+
+- `actions.enabled`, `false` by default: the actions mode of the Onicost scheduler. `true` adds to the ClusterRole `patch` and `update` on `deployments` and `statefulsets`, `get`, `patch` and `update` on `deployments/scale` and `statefulsets/scale`, `patch` and `update` on `cronjobs`, and `get`, `list`, `watch`, `patch` and `update` on `horizontalpodautoscalers`, and nothing else: no create, no delete, no Secret, ConfigMap or custom resource. `values.schema.json` accepts only a boolean.
+- The Deployment sets `ONICOST_ACTIONS_ENABLED` from `actions.enabled`, and `ONICOST_NAMESPACE`, the namespace of the agent, which the scheduler never touches, from the downward API.
+- `docs/security.md` describes the actions mode: what the agent does with these permissions, what it never does, and how to leave the mode. `docs/install.md` gives the `helm upgrade` command with `--set actions.enabled=true`.
+
+### Changed
+
+- The chart deploys the agent 0.5.0, image `ghcr.io/onicost/onicost-agent:0.5.0`: it reads the schedule of its cluster from the endpoint, reports the scheduler actions and says in its heartbeat whether the actions mode is on. In actions mode it switches off and on the workloads of the scheduler rules activated in Onicost; otherwise it changes nothing and reports `actions_disabled`.
+- Upgrading from 0.4.x without `actions.enabled` keeps the read-only ClusterRole unchanged; the network flows are unchanged, the new routes are on the same endpoint.
+
 ## [0.4.1] - 2026-10-15
 
 ### Changed
@@ -85,7 +98,8 @@ Never published: these changes ship with 0.3.0.
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.1...HEAD
+[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.0...HEAD
+[0.5.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.1...onicost-agent-0.5.0
 [0.4.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.0...onicost-agent-0.4.1
 [0.4.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.3.0...onicost-agent-0.4.0
 [0.3.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.2.1...onicost-agent-0.3.0
