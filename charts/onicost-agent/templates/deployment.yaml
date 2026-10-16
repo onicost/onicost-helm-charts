@@ -66,6 +66,13 @@ spec:
               value: {{ join "," .Values.exclude.labelKeys | quote }}
             - name: ONICOST_PROXY_URL
               value: {{ .Values.proxy.url | quote }}
+            - name: ONICOST_ACTIONS_ENABLED
+              value: {{ .Values.actions.enabled | quote }}
+            # Namespace of the agent, which the scheduler never touches.
+            - name: ONICOST_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           # The Secret is mounted without subPath, so that a new token reaches
           # the file without a restart.
           volumeMounts:

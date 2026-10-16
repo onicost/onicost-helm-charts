@@ -25,6 +25,14 @@ kubelet:
   # node, not only its metrics.
   apiServerProxy: false
 
+actions:
+  # false: the agent is read-only; it reads the schedule of its cluster but
+  # changes nothing and reports actions_disabled. true: the ClusterRole lets it
+  # scale Deployments and StatefulSets, suspend CronJobs, set the minReplicas
+  # of their HorizontalPodAutoscalers and annotate these objects, for the
+  # scheduler rules activated in Onicost. Never creates nor deletes anything.
+  enabled: false
+
 # Interval between two scrapes of a kubelet: 10s, 15s, 20s, 30s or 60s.
 scrapeInterval: 30s
 

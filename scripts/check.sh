@@ -190,6 +190,80 @@ same 'nodes/proxy rule' "$(cat <<'EOF'
 EOF
 )" "$(clusterrole "${endpoint[@]}" --set kubelet.apiServerProxy=true | grep -B1 -A1 'nodes/proxy')"
 
+# Without actions.enabled the ClusterRole is the read-only one of the chart 0.4.1, byte for byte but the version labels.
+chart_yaml=$(helm show chart "$chart")
+chart_version=$(sed -n 's/^version: *//p' <<< "$chart_yaml" | tr -d '"')
+app_version=$(sed -n 's/^appVersion: *//p' <<< "$chart_yaml" | tr -d '"')
+read_only_role=$(cat <<EOF
+---
+# Source: onicost-agent/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: onicost-agent
+  labels:
+    app.kubernetes.io/name: onicost-agent
+    app.kubernetes.io/instance: onicost-agent
+    app.kubernetes.io/version: "$app_version"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: onicost-agent-$chart_version
+rules:
+  - apiGroups: [""]
+    resources: [nodes, pods, namespaces, persistentvolumes, persistentvolumeclaims]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [nodes/metrics]
+    verbs: [get]
+EOF
+)
+same 'default ClusterRole' "$read_only_role" "$(clusterrole "${endpoint[@]}")"
+same 'ClusterRole with actions.enabled=false' "$read_only_role" "$(clusterrole "${endpoint[@]}" --set actions.enabled=false)"
+
+# actions.enabled adds the write rules of the scheduler, and nothing else: no create, no delete, no Secret.
+same 'ClusterRole with actions.enabled' "$read_only_role
+$(cat <<'EOF'
+  # Actions mode of the scheduler: scale, suspend and annotate workloads.
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [patch, update]
+  - apiGroups: [apps]
+    resources: [deployments/scale, statefulsets/scale]
+    verbs: [get, patch, update]
+  - apiGroups: [batch]
+    resources: [cronjobs]
+    verbs: [patch, update]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch, patch, update]
+EOF
+)" "$(clusterrole "${endpoint[@]}" --set actions.enabled=true)"
+
+# The agent learns the actions mode from ONICOST_ACTIONS_ENABLED and its own namespace, which it never touches,
+# from the downward API.
+actions_env() {
+  helm template onicost-agent "$chart" --show-only templates/deployment.yaml "$@" \
+    | sed -n '/- name: ONICOST_ACTIONS_ENABLED$/,/fieldPath:/p'
+}
+actions_env_want() {
+  cat <<EOF
+            - name: ONICOST_ACTIONS_ENABLED
+              value: "$1"
+            # Namespace of the agent, which the scheduler never touches.
+            - name: ONICOST_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+EOF
+}
+same 'default actions variables' "$(actions_env_want false)" "$(actions_env "${endpoint[@]}")"
+same 'actions variables with actions.enabled' "$(actions_env_want true)" "$(actions_env "${endpoint[@]}" --set actions.enabled=true)"
+
 refuses 'endpoint is required'
 refuses 'endpoint is required' --set endpoint=
 refuses schema --set endpoint=ingest.example.test
@@ -213,3 +287,7 @@ refuses schema "${endpoint[@]}" --set 'networkPolicy.egressPorts={0}'
 refuses schema "${endpoint[@]}" --set 'networkPolicy.egressPorts={65536}'
 refuses schema "${endpoint[@]}" --set 'networkPolicy.egressCidrs={10.0.0.0}'
 refuses schema "${endpoint[@]}" --set-json 'networkPolicy.metricsFrom=["x"]'
+refuses schema "${endpoint[@]}" --set actions=true
+refuses schema "${endpoint[@]}" --set actions.enable=true
+refuses schema "${endpoint[@]}" --set actions.enabled=null
+refuses schema "${endpoint[@]}" --set-string actions.enabled=true

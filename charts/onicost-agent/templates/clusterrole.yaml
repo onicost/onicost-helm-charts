@@ -1,7 +1,10 @@
 {{- /*
-Read-only access: no Secret, no ConfigMap, no write. GET /version is already
-allowed by system:public-info-viewer. get on nodes/proxy, which opens the
-whole kubelet API of every node, only with kubelet.apiServerProxy.
+Read-only access by default: no Secret, no ConfigMap, no write. GET /version is
+already allowed by system:public-info-viewer. get on nodes/proxy, which opens
+the whole kubelet API of every node, only with kubelet.apiServerProxy. The
+write rules of the scheduler only with actions.enabled: patch and update on
+the workloads and their scale, and on the HorizontalPodAutoscalers, which the
+agent then watches; never create, delete, Secrets, ConfigMaps or CRDs.
 */ -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -27,4 +30,19 @@ rules:
   - apiGroups: [""]
     resources: [nodes/proxy]
     verbs: [get]
+  {{- end }}
+  {{- if .Values.actions.enabled }}
+  # Actions mode of the scheduler: scale, suspend and annotate workloads.
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [patch, update]
+  - apiGroups: [apps]
+    resources: [deployments/scale, statefulsets/scale]
+    verbs: [get, patch, update]
+  - apiGroups: [batch]
+    resources: [cronjobs]
+    verbs: [patch, update]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch, patch, update]
   {{- end }}

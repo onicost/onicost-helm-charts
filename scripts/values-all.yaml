@@ -3,6 +3,8 @@ endpoint: https://ingest.example.test
 kubelet:
   insecureSkipVerify: true
   apiServerProxy: true
+actions:
+  enabled: true
 scrapeInterval: 15s
 exclude:
   namespaces: [kube-system, monitoring]
