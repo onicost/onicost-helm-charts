@@ -2,7 +2,7 @@
 
 ## Permissions
 
-The agent's ClusterRole is read-only:
+The agent's ClusterRole is read-only by default:
 
 | API group | Resources | Verbs |
 |---|---|---|
@@ -12,7 +12,7 @@ The agent's ClusterRole is read-only:
 | `""` (core) | `nodes/metrics` | `get` |
 | `""` (core) | `nodes/proxy` | `get`, only with `kubelet.apiServerProxy=true` |
 
-No access to Secrets or ConfigMaps, and no write permission. The kubelet mounts the token from its Secret: the agent reads no Secret through the API.
+No access to Secrets or ConfigMaps, and no write permission unless you enable the [actions mode](#actions-mode). The kubelet mounts the token from its Secret: the agent reads no Secret through the API.
 
 The pod meets the `restricted` Pod Security Standard: non-root user `65532`, read-only root filesystem, all capabilities dropped, no privilege escalation, seccomp `RuntimeDefault`.
 
@@ -22,11 +22,44 @@ Sent to Onicost:
 
 - the inventory: nodes (capacity, allocatable, GPU resources, labels), namespaces and workloads with their labels, pods with the requests and limits of their containers, PersistentVolumes and PersistentVolumeClaims;
 - the usage: CPU and memory of each container, read from the kubelet resource metrics and aggregated per minute;
-- on AWS Fargate nodes only, the size Fargate provisioned for each pod, parsed from its `CapacityProvisioned` annotation.
+- on AWS Fargate nodes only, the size Fargate provisioned for each pod, parsed from its `CapacityProvisioned` annotation;
+- for the scheduler, in every mode: each action or skipped action, with its rule, its workload (`namespace/kind/name`), its reason, a short detail and the original values; and, in each heartbeat, whether the actions mode is on.
+
+The agent also reads from Onicost the schedule of its cluster: the windows, exceptions and wake-ups of the active scheduler rules, and the namespaces and labels they target.
 
 Not collected: Secrets, ConfigMaps, pod annotations other than the Fargate one, logs, and application data or traffic.
 
 To send less, `exclude.namespaces` drops everything from the listed namespaces, and `exclude.labelKeys` removes the listed label keys before sending.
+
+## Actions mode
+
+The Onicost scheduler switches workloads off and on at the times of the rules you activate in Onicost, for example outside office hours. The agent reads the schedule of its cluster in every mode, but acts only when the chart is installed with `actions.enabled=true`. Without it, the agent changes nothing and reports, once per window and per workload, that it lacks the permissions (`actions_disabled`); the cluster page in Onicost shows the command that enables the mode (see [Install](install.md#actions-mode)).
+
+`actions.enabled=true` adds these rules to the ClusterRole, and nothing else:
+
+| API group | Resources | Verbs |
+|---|---|---|
+| `apps` | `deployments`, `statefulsets` | `patch`, `update` |
+| `apps` | `deployments/scale`, `statefulsets/scale` | `get`, `patch`, `update` |
+| `batch` | `cronjobs` | `patch`, `update` |
+| `autoscaling` | `horizontalpodautoscalers` | `get`, `list`, `watch`, `patch`, `update` |
+
+During a stop window of an active rule, the agent:
+
+- scales a Deployment or a StatefulSet to 0 replicas, or to 1 when a HorizontalPodAutoscaler drives it, after setting `minReplicas: 1` on that HorizontalPodAutoscaler, which cannot scale to zero;
+- sets `suspend: true` on a CronJob;
+- first writes the original values (replicas, `minReplicas`, `suspend`, rule, time) to the annotation `onicost.com/scheduler-restore` of the object and of its HorizontalPodAutoscaler. At the end of the window it restores exactly these values and removes the annotation. The annotation is the agent's only memory: `kubectl get -o yaml` shows what was changed and how to undo it;
+- on an object managed by Flux, sets `kustomize.toolkit.fluxcd.io/reconcile: disabled` or `helm.toolkit.fluxcd.io/driftDetection: disabled` for the duration of the window, so that Flux does not bring the replicas back. Nothing changes in Git. On an object managed by Argo CD, or by another controller, whose replicas come back, the agent gives up for the rest of the window and reports it.
+
+The agent never:
+
+- creates or deletes an object, changes Pods, Nodes, custom resources or Argo CD Applications, or reads Secrets or ConfigMaps;
+- acts on a rule that is not active in Onicost, or on the schedule of another cluster: the endpoint serves only the schedule of the cluster of the token;
+- touches the namespaces `kube-system`, `kube-public`, `kube-node-lease`, `argocd`, `flux-system` and its own namespace, or a workload annotated `onicost.com/scheduler: ignore`.
+
+Kubernetes RBAC cannot restrict a verb to some fields or to some namespaces of a ClusterRole: `patch` and `update` allow any change to the spec of the Deployments, StatefulSets and CronJobs of every namespace. The agent writes only the fields and annotations above, and it enforces the excluded namespaces itself. Each action is reported to Onicost and shown in the scheduler journal.
+
+To leave the actions mode, pause or delete the rules in Onicost and wait for the workloads to come back on, then upgrade with `--set actions.enabled=false`. Without the permissions, the agent cannot restore an object it switched off: the `onicost.com/scheduler-restore` annotation keeps the values to restore by hand.
 
 ## The nodes/proxy option
 

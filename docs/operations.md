@@ -24,7 +24,7 @@ helm uninstall onicost-agent --namespace onicost
 kubectl delete namespace onicost
 ```
 
-`helm uninstall` also deletes the ClusterRole and the ClusterRoleBinding. Deleting the namespace deletes the token Secret.
+`helm uninstall` also deletes the ClusterRole and the ClusterRoleBinding. Deleting the namespace deletes the token Secret. In [actions mode](security.md#actions-mode), pause or delete the scheduler rules in Onicost and wait for the workloads to come back on before uninstalling.
 
 ## Metrics
 

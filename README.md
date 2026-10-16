@@ -1,6 +1,6 @@
 # Onicost Helm charts
 
-This repository holds the Helm chart of the Onicost agent. The agent runs in each Kubernetes cluster you monitor with [Onicost](https://onicost.com): it reads the cluster inventory and the container usage with read-only permissions and sends them to Onicost once a minute.
+This repository holds the Helm chart of the Onicost agent. The agent runs in each Kubernetes cluster you monitor with [Onicost](https://onicost.com): it reads the cluster inventory and the container usage with read-only permissions and sends them to Onicost once a minute. An optional actions mode lets the Onicost scheduler switch workloads off and on at the times you choose.
 
 ## Requirements
 
@@ -37,9 +37,9 @@ kubectl delete namespace onicost
 
 ## Documentation
 
-- [Install](docs/install.md): token, endpoint, proxy, network policy, checking the agent
+- [Install](docs/install.md): token, endpoint, proxy, network policy, actions mode, checking the agent
 - [Operations](docs/operations.md): upgrades, version pinning, metrics, logs, troubleshooting
-- [Security](docs/security.md): permissions, collected data, image provenance, reporting a vulnerability
+- [Security](docs/security.md): permissions, actions mode, collected data, image provenance, reporting a vulnerability
 - [Values reference](charts/onicost-agent/README.md)
 
 ## Versioning

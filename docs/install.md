@@ -59,6 +59,17 @@ It allows egress to the cluster DNS and to TCP 443, 6443 and 10250 (endpoint, AP
 
 On some managed clusters, Scaleway Kapsule for one, the agent cannot verify the kubelet certificates. Set `kubelet.apiServerProxy=true` to scrape these kubelets through the API server. Read [Security](security.md#the-nodesproxy-option) first: it grants an extra permission.
 
+### Actions mode
+
+The agent is read-only by default. To let the Onicost scheduler switch workloads off and on, enable the actions mode (chart 0.5.0 or later):
+
+```bash
+helm upgrade onicost-agent oci://ghcr.io/onicost/charts/onicost-agent \
+  --version <version> --namespace onicost --reset-then-reuse-values --set actions.enabled=true
+```
+
+The Onicost cluster page gives the same command with the version filled in. On a first install, add `--set actions.enabled=true` to the install command. Read [Security](security.md#actions-mode) first: it grants write permissions on the workloads.
+
 ## Check the agent
 
 ```bash
