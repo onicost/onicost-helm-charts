@@ -190,7 +190,9 @@ same 'nodes/proxy rule' "$(cat <<'EOF'
 EOF
 )" "$(clusterrole "${endpoint[@]}" --set kubelet.apiServerProxy=true | grep -B1 -A1 'nodes/proxy')"
 
-# Without actions.enabled the ClusterRole is the read-only one of the chart 0.4.1, byte for byte but the version labels.
+# Without actions.enabled the ClusterRole is the read-only one of the chart 0.6.0, byte for byte but the version labels:
+# get, list and watch on the inventory resources, HorizontalPodAutoscalers and PodDisruptionBudgets included, and get on
+# nodes/metrics.
 chart_yaml=$(helm show chart "$chart")
 chart_version=$(sed -n 's/^version: *//p' <<< "$chart_yaml" | tr -d '"')
 app_version=$(sed -n 's/^appVersion: *//p' <<< "$chart_yaml" | tr -d '"')
@@ -217,6 +219,12 @@ rules:
   - apiGroups: [batch]
     resources: [jobs, cronjobs]
     verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+  - apiGroups: [policy]
+    resources: [poddisruptionbudgets]
+    verbs: [get, list, watch]
   - apiGroups: [""]
     resources: [nodes/metrics]
     verbs: [get]
@@ -241,6 +249,14 @@ $(cat <<'EOF'
     verbs: [get, list, watch, patch]
 EOF
 )" "$(clusterrole "${endpoint[@]}" --set actions.enabled=true)"
+
+# The read rules never carry a write verb, whatever the values.
+for value in actions.enabled=false actions.enabled=true kubelet.apiServerProxy=true; do
+  if clusterrole "${endpoint[@]}" --set "$value" | sed -n '/poddisruptionbudgets/,/verbs/p' | grep -Eq 'patch|update|create|delete'; then
+    echo "poddisruptionbudgets granted more than get, list and watch with $value" >&2
+    exit 1
+  fi
+done
 
 # The agent learns the actions mode from ONICOST_ACTIONS_ENABLED and its own namespace, which it never touches,
 # from the downward API.

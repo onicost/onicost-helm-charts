@@ -9,6 +9,8 @@ The agent's ClusterRole is read-only by default:
 | `""` (core) | `nodes`, `pods`, `namespaces`, `persistentvolumes`, `persistentvolumeclaims` | `get`, `list`, `watch` |
 | `apps` | `deployments`, `replicasets`, `statefulsets`, `daemonsets` | `get`, `list`, `watch` |
 | `batch` | `jobs`, `cronjobs` | `get`, `list`, `watch` |
+| `autoscaling` | `horizontalpodautoscalers` | `get`, `list`, `watch` |
+| `policy` | `poddisruptionbudgets` | `get`, `list`, `watch` |
 | `""` (core) | `nodes/metrics` | `get` |
 | `""` (core) | `nodes/proxy` | `get`, only with `kubelet.apiServerProxy=true` |
 
@@ -20,14 +22,14 @@ The pod meets the `restricted` Pod Security Standard: non-root user `65532`, rea
 
 Sent to Onicost:
 
-- the inventory: nodes (capacity, allocatable, GPU resources, labels), namespaces and workloads with their labels, pods with the requests and limits of their containers, PersistentVolumes and PersistentVolumeClaims;
-- the usage: CPU and memory of each container, read from the kubelet resource metrics and aggregated per minute;
+- the inventory: nodes (capacity, allocatable, GPU resources, taints, architecture, node pool, labels), namespaces and workloads with their labels, the placement constraints, requests and limits of their pod templates (node selector, required node affinity, tolerations, topology spread, required anti-affinity on hosts, priority class), their QoS class, HorizontalPodAutoscaler and PodDisruptionBudget, pods with the requests and limits of their containers, PersistentVolumes and PersistentVolumeClaims with their requested size;
+- the usage: CPU and memory of each container, read from the kubelet resource metrics, and from the kubelet cAdvisor metrics the CPU throttling, the OOM kills, the memory peak, the network bytes of each pod and the ephemeral storage used, the restarts from the pod status, and the used and total bytes of each mounted PersistentVolumeClaim from the kubelet metrics, all aggregated per minute;
 - on AWS Fargate nodes only, the size Fargate provisioned for each pod, parsed from its `CapacityProvisioned` annotation;
 - for the scheduler, in every mode: each action or skipped action, with its rule, its workload (`namespace/kind/name`), its reason, a short detail and the original values; and, in each heartbeat, whether the actions mode is on.
 
 The agent also reads from Onicost the schedule of its cluster: the windows, exceptions and wake-ups of the active scheduler rules, and the namespaces and labels they target.
 
-Not collected: Secrets, ConfigMaps, pod annotations other than the Fargate one, logs, and application data or traffic.
+Not collected: Secrets, ConfigMaps, pod annotations other than the Fargate one, logs, and application data or traffic. The annotation `onicost.com/spot: ignore` of a Deployment is read, and only the fact that it is set is sent.
 
 To send less, `exclude.namespaces` drops everything from the listed namespaces, and `exclude.labelKeys` removes the listed label keys before sending.
 
@@ -43,7 +45,7 @@ The Onicost scheduler switches workloads off and on at the times of the rules yo
 | `batch` | `cronjobs` | `patch` |
 | `autoscaling` | `horizontalpodautoscalers` | `get`, `list`, `watch`, `patch` |
 
-The agent writes only with JSON merge patches on the objects themselves: never `update`, never the `scale` subresource. It reads the Deployments, StatefulSets and CronJobs with the read-only rules, and watches the HorizontalPodAutoscalers in this mode only.
+The agent writes only with JSON merge patches on the objects themselves: never `update`, never the `scale` subresource. It reads the Deployments, StatefulSets, CronJobs and HorizontalPodAutoscalers with the read-only rules; the scheduler watches the HorizontalPodAutoscalers in this mode only.
 
 During a stop window of an active rule, the agent:
 
