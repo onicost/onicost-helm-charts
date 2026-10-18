@@ -4,6 +4,17 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-18
+
+### Added
+
+- The read-only ClusterRole gains `get`, `list` and `watch` on `horizontalpodautoscalers` (`autoscaling`) and `poddisruptionbudgets` (`policy`), whatever `actions.enabled`: the agent 0.6.0 reads them for the recommendations of Onicost, never writes a PodDisruptionBudget, and patches the HorizontalPodAutoscalers in the actions mode only, as before. `scripts/check.sh` checks that the PodDisruptionBudget rule carries no write verb with `actions.enabled` false or true and with `kubelet.apiServerProxy`. `docs/security.md` lists the two rules and the new readings.
+
+### Changed
+
+- The chart deploys the agent 0.6.0, image `ghcr.io/onicost/onicost-agent:0.6.0`: it reads the cAdvisor and volume metrics of the kubelets (CFS throttling, OOM kills, memory peak, network, ephemeral storage, volume usage) with the existing `nodes/metrics` right, the pools, taints and allocatable of the nodes, the placement, resources, QoS class, HPA and PDB of the workloads, which the recommendations v2 of Onicost need. Without the new read rules, the agent sends the workloads without HPA and PDB and checks the rights again every 10 minutes. The values, the network flows and the actions mode do not change. Upgrading from 0.5.x keeps the values (`--reset-then-reuse-values`, with `--set actions.enabled=true` where it was set); the agents 0.5 still work with Onicost, with fewer recommendations.
+- The chart description names the HPAs and PDBs and the network, throttling and volume usage.
+
 ## [0.5.1] - 2026-10-16
 
 ### Changed
@@ -105,7 +116,8 @@ Never published: these changes ship with 0.3.0.
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.1...HEAD
+[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.6.0...HEAD
+[0.6.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.1...onicost-agent-0.6.0
 [0.5.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.0...onicost-agent-0.5.1
 [0.5.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.1...onicost-agent-0.5.0
 [0.4.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.4.0...onicost-agent-0.4.1
