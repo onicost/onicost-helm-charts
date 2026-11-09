@@ -49,7 +49,7 @@ Lists on the command line: `--set 'exclude.namespaces={kube-system,monitoring}'`
 
 ## Auto-resize mode
 
-The auto-resize mode needs Kubernetes 1.35 or later, for the API server and for the kubelets: it resizes pods in place, which is generally available from 1.35. On an older cluster, Onicost keeps the mode off and says why. It is off by default, and turning it on changes no pod by itself: the agent acts only on the workloads of the namespaces you label and activate in Onicost, with the values Onicost validated after the observation period.
+The auto-resize mode needs the chart 0.7.0 or later and Kubernetes 1.35 or later, for the API server and for the kubelets: it resizes pods in place, which is generally available from 1.35. On an older cluster, Onicost keeps the mode off and says why. It is off by default, and turning it on changes no pod by itself: the agent acts only on the workloads of the namespaces you label and activate in Onicost, with the values Onicost validated after the observation period.
 
 ```bash
 helm upgrade onicost-agent oci://ghcr.io/onicost/charts/onicost-agent --version <version> \
