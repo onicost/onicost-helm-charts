@@ -5,6 +5,8 @@ kubelet:
   apiServerProxy: true
 actions:
   enabled: true
+autoresize:
+  enabled: true
 scrapeInterval: 15s
 exclude:
   namespaces: [kube-system, monitoring]

@@ -1,0 +1,38 @@
+{{- /*
+Auto-resize mode: the state ConfigMap of the agent (freezes, steps and canaries), in the release namespace only.
+*/ -}}
+{{- if .Values.autoresize.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "onicost-agent.autoresizeName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "onicost-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [onicost-autoresize-state]
+    verbs: [get, patch]
+  # RBAC cannot restrict create to a name: the request is authorized before the object, and its name, exist. The agent
+  # creates only onicost-autoresize-state, and only in the release namespace.
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "onicost-agent.autoresizeName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "onicost-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "onicost-agent.autoresizeName" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "onicost-agent.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

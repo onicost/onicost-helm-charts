@@ -8,6 +8,7 @@
     "token",
     "kubelet",
     "actions",
+    "autoresize",
     "scrapeInterval",
     "exclude",
     "proxy",
@@ -63,6 +64,17 @@
       "properties": {
         "enabled": {
           "description": "true: the ClusterRole grants the write rules of the scheduler and the agent acts on the activated rules. false: read-only.",
+          "type": "boolean"
+        }
+      }
+    },
+    "autoresize": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "description": "true: auto-resize mode (Kubernetes 1.35 or later). The ClusterRole grants patch on pods/resize, create on pods/eviction and get, list and watch on verticalpodautoscalers; a Role grants get, create and patch on the state ConfigMap; a MutatingWebhookConfiguration with failurePolicy Ignore gives the new pods of the labelled namespaces the validated values. false: nothing of the mode is installed.",
           "type": "boolean"
         }
       }

@@ -38,3 +38,12 @@ that podLabels can never change the selector.
 {{- $labels := include "onicost-agent.labels" . | fromYaml -}}
 {{- toYaml (merge $labels (.Values.podLabels | default dict)) -}}
 {{- end -}}
+
+{{/*
+Name of the objects of the auto-resize mode: its Service, Role, RoleBinding and
+MutatingWebhookConfiguration, and with -tls its Secret. Cut to 52 characters so
+that the Service, a DNS label, stays within 63 with the suffix.
+*/}}
+{{- define "onicost-agent.autoresizeName" -}}
+{{- printf "%s-autoresize" (include "onicost-agent.fullname" . | trunc 52 | trimSuffix "-") -}}
+{{- end -}}

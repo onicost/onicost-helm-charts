@@ -1,6 +1,7 @@
 {{- /*
 Traffic of the agent in a namespace that denies traffic by default: the cluster DNS, then the API server, the
-kubelets and the gateway on egressPorts. The probes come from the kubelet and need no rule.
+kubelets and the gateway on egressPorts. The probes come from the kubelet and need no rule. In the auto-resize mode,
+the API server calls the webhook of the agent on 9443.
 */ -}}
 {{- with .Values.networkPolicy }}
 {{- if .enabled }}
@@ -17,7 +18,7 @@ spec:
       {{- include "onicost-agent.selectorLabels" $ | nindent 6 }}
   policyTypes:
     - Egress
-    {{- if .metricsFrom }}
+    {{- if or .metricsFrom $.Values.autoresize.enabled }}
     - Ingress
     {{- end }}
   egress:
@@ -62,14 +63,23 @@ spec:
     {{- with .extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- with .metricsFrom }}
+  {{- if or .metricsFrom $.Values.autoresize.enabled }}
   ingress:
+    {{- with .metricsFrom }}
     # Metrics.
     - from:
         {{- toYaml . | nindent 8 }}
       ports:
         - port: http
           protocol: TCP
+    {{- end }}
+    {{- if $.Values.autoresize.enabled }}
+    # Admission webhook of the auto-resize, called by the API server. Its source address is not known to the chart, and
+    # is often outside the pod network (a managed control plane): any source. The webhook answers only over TLS.
+    - ports:
+        - port: 9443
+          protocol: TCP
+    {{- end }}
   {{- end }}
 {{- end }}
 {{- end }}

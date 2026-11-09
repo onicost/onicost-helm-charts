@@ -95,7 +95,7 @@ spec:
 EOF
 )" "$(netpol "${endpoint[@]}" --set networkPolicy.enabled=true)"
 
-# Every option: CIDR allow-list, extra egress rules appended, ingress on the metrics port.
+# Every option: CIDR allow-list, extra egress rules appended, ingress on the metrics port and on the webhook port.
 same 'NetworkPolicy of values-all.yaml' "$(cat <<'EOF'
 spec:
   podSelector:
@@ -151,6 +151,11 @@ spec:
               app.kubernetes.io/name: prometheus
       ports:
         - port: http
+          protocol: TCP
+    # Admission webhook of the auto-resize, called by the API server. Its source address is not known to the chart, and
+    # is often outside the pod network (a managed control plane): any source. The webhook answers only over TLS.
+    - ports:
+        - port: 9443
           protocol: TCP
 EOF
 )" "$(netpol -f scripts/values-all.yaml)"
@@ -278,6 +283,234 @@ EOF
 same 'default actions variables' "$(actions_env_want false)" "$(actions_env "${endpoint[@]}")"
 same 'actions variables with actions.enabled' "$(actions_env_want true)" "$(actions_env "${endpoint[@]}" --set actions.enabled=true)"
 
+# Without autoresize.enabled, nothing of the auto-resize mode is rendered, whatever the other values: no pods/resize, no
+# pods/eviction, no VerticalPodAutoscaler, no webhook, no Role of the state, no Secret or Service of the webhook, no port
+# 9443 and no variable of the mode.
+for args in "" "--set autoresize.enabled=false" "--set actions.enabled=true" "--set networkPolicy.enabled=true" "--set kubelet.apiServerProxy=true"; do
+  # shellcheck disable=SC2086
+  manifests=$(helm template onicost-agent "$chart" "${endpoint[@]}" $args)
+  for word in pods/resize pods/eviction verticalpodautoscalers MutatingWebhookConfiguration '^kind: Role$' '^kind: RoleBinding$' \
+    '^kind: Service$' 'kubernetes.io/tls' failurePolicy 9443 ONICOST_AUTORESIZE autoresize; do
+    if grep -Eq "$word" <<< "$manifests"; then
+      echo "'$word' rendered without autoresize.enabled ($args)" >&2
+      exit 1
+    fi
+  done
+done
+
+# autoresize.enabled adds to the ClusterRole patch on pods/resize, create on pods/eviction and get, list and watch on the
+# VerticalPodAutoscalers, and nothing else; with actions.enabled too, both sets of rules.
+autoresize_rules=$(cat <<'EOF'
+  # Auto-resize mode: resize the pods in place, lower and back up.
+  - apiGroups: [""]
+    resources: [pods/resize]
+    verbs: [patch]
+  # Auto-resize mode: evict a pod whose roll back in place stays refused, through the Eviction API, which honours its PodDisruptionBudget.
+  - apiGroups: [""]
+    resources: [pods/eviction]
+    verbs: [create]
+  # Auto-resize mode: find the workloads a VerticalPodAutoscaler drives, to leave them alone. Read only; nothing is created.
+  - apiGroups: [autoscaling.k8s.io]
+    resources: [verticalpodautoscalers]
+    verbs: [get, list, watch]
+EOF
+)
+same 'ClusterRole with autoresize.enabled' "$read_only_role
+$autoresize_rules" "$(clusterrole "${endpoint[@]}" --set autoresize.enabled=true)"
+same 'ClusterRole with actions.enabled and autoresize.enabled' "$(clusterrole "${endpoint[@]}" --set actions.enabled=true)
+$autoresize_rules" "$(clusterrole "${endpoint[@]}" --set actions.enabled=true --set autoresize.enabled=true)"
+
+# The Role of the state, in the release namespace only: get and patch on the state ConfigMap by name, create without a
+# name, which RBAC cannot restrict; bound to the service account of the agent.
+same 'Role of the auto-resize' "$(cat <<'EOF'
+kind: Role
+metadata:
+  name: onicost-agent-autoresize
+  namespace: onicost
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [onicost-autoresize-state]
+    verbs: [get, patch]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+kind: RoleBinding
+metadata:
+  name: onicost-agent-autoresize
+  namespace: onicost
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: onicost-agent-autoresize
+subjects:
+  - kind: ServiceAccount
+    name: onicost-agent
+    namespace: onicost
+EOF
+)" "$(helm template onicost-agent "$chart" "${endpoint[@]}" --namespace onicost --set autoresize.enabled=true \
+  --show-only templates/autoresize-role.yaml | grep -Ev '^(---| *#|apiVersion:|  labels:|    (app.kubernetes.io|helm.sh)/)' | grep -v '^ *$')"
+
+# The webhook never blocks a pod: failurePolicy Ignore, a 2 s timeout, no side effect, no reinvocation, the CREATE of
+# pods only, the labelled namespaces only, never the release namespace nor kube-system. The caBundle is the CA of the
+# Secret, which signed a certificate of <service>.<namespace>.svc.
+webhook=$(helm template onicost-agent "$chart" "${endpoint[@]}" --namespace payments-ops --set autoresize.enabled=true \
+  --show-only templates/autoresize-webhook.yaml)
+same 'MutatingWebhookConfiguration' "$(cat <<'EOF'
+webhooks:
+  - name: pods.autoresize.onicost.com
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    # A webhook that fails or does not answer leaves the pod with the values of its template.
+    failurePolicy: Ignore
+    timeoutSeconds: 2
+    reinvocationPolicy: Never
+    matchPolicy: Equivalent
+    clientConfig:
+      service:
+        name: onicost-agent-autoresize
+        namespace: payments-ops
+        path: /mutate-pods
+        port: 443
+    rules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE]
+        resources: [pods]
+        scope: Namespaced
+    # Only the namespaces labelled for the mode, never the agent's own nor kube-system, even labelled.
+    namespaceSelector:
+      matchLabels:
+        onicost.com/autoresize: enabled
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: ["payments-ops", kube-system]
+EOF
+)" "$(sed -n '/^webhooks:/,$p' <<< "$webhook" | grep -v 'caBundle:')"
+same 'Service of the webhook' "$(cat <<'EOF'
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: onicost-agent
+    app.kubernetes.io/instance: onicost-agent
+  ports:
+    - name: webhook
+      port: 443
+      targetPort: webhook
+      protocol: TCP
+EOF
+)" "$(awk '/^kind: Service$/{s=1} s && /^spec:/{p=1} p && /^---/{exit} p' <<< "$webhook" | grep -v '^ *$')"
+tls=$(mktemp -d)
+trap 'rm -rf "$tls"' EXIT
+secret_value() { sed -n "s/^  $1: //p" <<< "$webhook" | base64 --decode; }
+secret_value tls.crt > "$tls/tls.crt"
+secret_value ca.crt > "$tls/ca.crt"
+secret_value tls.key > "$tls/tls.key"
+if [[ $(sed -n 's/^      caBundle: //p' <<< "$webhook" | base64 --decode) != "$(cat "$tls/ca.crt")" ]]; then
+  echo 'the caBundle of the webhook is not the CA of its Secret' >&2
+  exit 1
+fi
+if ! grep -q '^type: kubernetes.io/tls$' <<< "$webhook" || ! openssl verify -CAfile "$tls/ca.crt" "$tls/tls.crt" > /dev/null; then
+  echo 'the certificate of the webhook is not a TLS Secret signed by its CA' >&2
+  exit 1
+fi
+if ! openssl x509 -in "$tls/tls.crt" -noout -text | grep -q 'DNS:onicost-agent-autoresize.payments-ops.svc'; then
+  echo 'the certificate of the webhook does not name onicost-agent-autoresize.payments-ops.svc' >&2
+  exit 1
+fi
+if [[ $(openssl x509 -in "$tls/tls.crt" -noout -pubkey) != "$(openssl pkey -in "$tls/tls.key" -pubout)" ]]; then
+  echo 'the key of the webhook does not match its certificate' >&2
+  exit 1
+fi
+
+# The agent runs in the mode: its variables, the port of the webhook, and the Secret of the certificate mounted read-only.
+deployment() {
+  helm template onicost-agent "$chart" --show-only templates/deployment.yaml "$@"
+}
+on=$(deployment "${endpoint[@]}" --set autoresize.enabled=true)
+same 'auto-resize variables' "$(cat <<'EOF'
+            - name: ONICOST_AUTORESIZE_ENABLED
+              value: "true"
+            - name: ONICOST_AUTORESIZE_WEBHOOK_ADDR
+              value: ":9443"
+            - name: ONICOST_AUTORESIZE_TLS_DIR
+              value: "/etc/onicost/autoresize-tls"
+EOF
+)" "$(sed -n '/- name: ONICOST_AUTORESIZE_ENABLED$/,/autoresize-tls"$/p' <<< "$on")"
+same 'auto-resize port' "$(cat <<'EOF'
+            - name: webhook
+              containerPort: 9443
+              protocol: TCP
+EOF
+)" "$(grep -A2 -- '- name: webhook$' <<< "$on")"
+same 'auto-resize certificate mount' "$(cat <<'EOF'
+          volumeMounts:
+            - name: token
+              mountPath: /var/run/secrets/onicost
+              readOnly: true
+            # Certificate of the webhook, read again by the agent when the kubelet updates it.
+            - name: autoresize-tls
+              mountPath: /etc/onicost/autoresize-tls
+              readOnly: true
+EOF
+)" "$(sed -n '/^          volumeMounts:$/,/^          livenessProbe:$/p' <<< "$on" | sed '$d')"
+same 'auto-resize certificate volume' "$(cat <<'EOF'
+        - name: autoresize-tls
+          secret:
+            secretName: "onicost-agent-autoresize-tls"
+            defaultMode: 0440
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+EOF
+)" "$(sed -n '/^        - name: autoresize-tls$/,$p' <<< "$on")"
+# Without the mode, the Deployment is that of the chart without the mode, byte for byte.
+same 'Deployment with autoresize.enabled=false' "$(deployment "${endpoint[@]}")" "$(deployment "${endpoint[@]}" --set autoresize.enabled=false)"
+
+# The NetworkPolicy opens TCP 9443 in ingress from any source in the mode, the egress rules unchanged.
+same 'NetworkPolicy with autoresize.enabled' "$(cat <<'EOF'
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: onicost-agent
+      app.kubernetes.io/instance: onicost-agent
+  policyTypes:
+    - Egress
+    - Ingress
+  egress:
+    # Cluster DNS.
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+      to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+    # API server, kubelets and gateway.
+    - ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
+          protocol: TCP
+        - port: 10250
+          protocol: TCP
+  ingress:
+    # Admission webhook of the auto-resize, called by the API server. Its source address is not known to the chart, and
+    # is often outside the pod network (a managed control plane): any source. The webhook answers only over TLS.
+    - ports:
+        - port: 9443
+          protocol: TCP
+EOF
+)" "$(netpol "${endpoint[@]}" --set networkPolicy.enabled=true --set autoresize.enabled=true)"
+
 refuses 'endpoint is required'
 refuses 'endpoint is required' --set endpoint=
 refuses schema --set endpoint=ingest.example.test
@@ -305,3 +538,7 @@ refuses schema "${endpoint[@]}" --set actions=true
 refuses schema "${endpoint[@]}" --set actions.enable=true
 refuses schema "${endpoint[@]}" --set actions.enabled=null
 refuses schema "${endpoint[@]}" --set-string actions.enabled=true
+refuses schema "${endpoint[@]}" --set autoresize=true
+refuses schema "${endpoint[@]}" --set autoresize.enable=true
+refuses schema "${endpoint[@]}" --set autoresize.enabled=null
+refuses schema "${endpoint[@]}" --set-string autoresize.enabled=true

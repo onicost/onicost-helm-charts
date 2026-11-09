@@ -6,7 +6,12 @@ system:public-info-viewer. get on nodes/proxy, which opens the whole kubelet
 API of every node, only with kubelet.apiServerProxy. The write rules of the
 scheduler only with actions.enabled: patch on the workloads and on the
 HorizontalPodAutoscalers; never update, the scale subresource, create, delete,
-Secrets, ConfigMaps or CRDs.
+Secrets, ConfigMaps or CRDs. The rules of the auto-resize only with
+autoresize.enabled: patch on the resize subresource of the pods, create on
+their eviction subresource, and get, list and watch on the
+VerticalPodAutoscalers; never update or delete on a pod, nor a write on a
+VerticalPodAutoscaler. Its state ConfigMap is in the Role of
+autoresize-role.yaml, in the release namespace only.
 */ -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -50,4 +55,18 @@ rules:
   - apiGroups: [autoscaling]
     resources: [horizontalpodautoscalers]
     verbs: [get, list, watch, patch]
+  {{- end }}
+  {{- if .Values.autoresize.enabled }}
+  # Auto-resize mode: resize the pods in place, lower and back up.
+  - apiGroups: [""]
+    resources: [pods/resize]
+    verbs: [patch]
+  # Auto-resize mode: evict a pod whose roll back in place stays refused, through the Eviction API, which honours its PodDisruptionBudget.
+  - apiGroups: [""]
+    resources: [pods/eviction]
+    verbs: [create]
+  # Auto-resize mode: find the workloads a VerticalPodAutoscaler drives, to leave them alone. Read only; nothing is created.
+  - apiGroups: [autoscaling.k8s.io]
+    resources: [verticalpodautoscalers]
+    verbs: [get, list, watch]
   {{- end }}

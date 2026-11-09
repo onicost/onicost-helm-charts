@@ -48,6 +48,12 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+            {{- if .Values.autoresize.enabled }}
+            # Admission webhook of the auto-resize, HTTPS.
+            - name: webhook
+              containerPort: 9443
+              protocol: TCP
+            {{- end }}
           # Every variable is always defined, possibly to the empty string.
           env:
             - name: ONICOST_ENDPOINT
@@ -73,12 +79,27 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            {{- if .Values.autoresize.enabled }}
+            # Auto-resize mode, only when enabled: without it, the Deployment is that of the chart without the mode.
+            - name: ONICOST_AUTORESIZE_ENABLED
+              value: "true"
+            - name: ONICOST_AUTORESIZE_WEBHOOK_ADDR
+              value: ":9443"
+            - name: ONICOST_AUTORESIZE_TLS_DIR
+              value: "/etc/onicost/autoresize-tls"
+            {{- end }}
           # The Secret is mounted without subPath, so that a new token reaches
           # the file without a restart.
           volumeMounts:
             - name: token
               mountPath: /var/run/secrets/onicost
               readOnly: true
+            {{- if .Values.autoresize.enabled }}
+            # Certificate of the webhook, read again by the agent when the kubelet updates it.
+            - name: autoresize-tls
+              mountPath: /etc/onicost/autoresize-tls
+              readOnly: true
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -121,3 +142,14 @@ spec:
             items:
               - key: {{ .Values.token.secretKey | quote }}
                 path: token
+        {{- if .Values.autoresize.enabled }}
+        - name: autoresize-tls
+          secret:
+            secretName: {{ printf "%s-tls" (include "onicost-agent.autoresizeName" .) | quote }}
+            defaultMode: 0440
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+        {{- end }}
