@@ -14,7 +14,7 @@ The agent's ClusterRole is read-only by default:
 | `""` (core) | `nodes/metrics` | `get` |
 | `""` (core) | `nodes/proxy` | `get`, only with `kubelet.apiServerProxy=true` |
 
-No access to Secrets or ConfigMaps, and no write permission unless you enable the [actions mode](#actions-mode). The kubelet mounts the token from its Secret: the agent reads no Secret through the API.
+No access to Secrets or ConfigMaps, and no write permission unless you enable the [actions mode](#actions-mode) or the auto-resize mode, whose rights the [chart README](../charts/onicost-agent/README.md#auto-resize-mode) lists. The kubelet mounts the token from its Secret: the agent reads no Secret through the API.
 
 The pod meets the `restricted` Pod Security Standard: non-root user `65532`, read-only root filesystem, all capabilities dropped, no privilege escalation, seccomp `RuntimeDefault`.
 
