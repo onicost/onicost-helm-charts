@@ -4,6 +4,10 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+### Changed
+
+- With `autoresize.enabled`, the MutatingWebhookConfiguration no longer selects the namespaces labelled `onicost.com/autoresize=enabled`: its `namespaceSelector` has no `matchLabels`, only a `NotIn` on `kubernetes.io/metadata.name` with the release namespace, the namespaces the agent never touches (`kube-system`, `kube-public`, `kube-node-lease`, `argocd`, `flux-system`) and `exclude.namespaces`, so that the API server does not call the webhook there. The webhook thus sees the creation of the pods of every other namespace, still with `failurePolicy: Ignore` and `timeoutSeconds: 2`. A cluster that turned the mode on with the chart 0.7.0 for a few labelled namespaces has every namespace in scope after the upgrade: list the others in `exclude.namespaces`, or turn their switch off in the app. The README drops the label step and describes the switches, **Stop all** and the annotation `onicost.com/autoresize: ignore`; `scripts/check.sh` checks the rendered selector.
+
 ## [0.7.0] - 2026-11-09
 
 ### Added

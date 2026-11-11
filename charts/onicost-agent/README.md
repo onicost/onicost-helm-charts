@@ -23,7 +23,7 @@ The schema refuses unknown keys and wrong types, so a misspelled key fails the i
 | `actions.enabled` | `false` | `true`: actions mode of the Onicost scheduler. The ClusterRole grants `patch` on Deployments, StatefulSets and CronJobs, and `get`, `list`, `watch` and `patch` on HorizontalPodAutoscalers, no `update` and no scale subresource, so that the agent switches off and on the workloads of the rules activated in Onicost. `false`: read-only, the ClusterRole has no write rule. See [Security](https://github.com/onicost/onicost-helm-charts/blob/main/docs/security.md#actions-mode) |
 | `autoresize.enabled` | `false` | `true`: [auto-resize mode](#auto-resize-mode), Kubernetes 1.35 or later. Adds `patch` on `pods/resize`, `create` on `pods/eviction` and `get`, `list`, `watch` on `verticalpodautoscalers` to the ClusterRole, a Role on the ConfigMap `onicost-autoresize-state` of the release namespace, and the admission webhook with its Service, its certificate Secret and, with `networkPolicy.enabled`, an ingress rule on `9443`. `false`: none of them is rendered. Independent of `actions.enabled` |
 | `scrapeInterval` | `30s` | Interval between two kubelet scrapes: `10s`, `15s`, `20s`, `30s` or `60s` |
-| `exclude.namespaces` | `[]` | Namespaces of which nothing is sent |
+| `exclude.namespaces` | `[]` | Namespaces of which nothing is sent, and in which the auto-resize never acts |
 | `exclude.labelKeys` | `[]` | Label keys removed before sending. Keep the GPU node labels (such as `nvidia.com/gpu.product`) and `eks.amazonaws.com/compute-type`: Onicost prices GPU and Fargate nodes from them |
 | `proxy.url` | `""` | Outgoing HTTP proxy, `http://` or `https://`, used only to reach the gateway. Empty: direct connection |
 | `image.repository` | `ghcr.io/onicost/onicost-agent` | Agent image |
@@ -49,15 +49,16 @@ Lists on the command line: `--set 'exclude.namespaces={kube-system,monitoring}'`
 
 ## Auto-resize mode
 
-The auto-resize mode needs the chart 0.7.0 or later and Kubernetes 1.35 or later, for the API server and for the kubelets: it resizes pods in place, which is generally available from 1.35. On an older cluster, Onicost keeps the mode off and says why. It is off by default, and turning it on changes no pod by itself: the agent acts only on the workloads of the namespaces you label and activate in Onicost, with the values Onicost validated after the observation period.
+The auto-resize mode needs the chart 0.8.0 or later and Kubernetes 1.35 or later, for the API server and for the kubelets: it resizes pods in place, which is generally available from 1.35. On an older cluster, Onicost keeps the mode off and says why. It is off by default: `autoresize.enabled` is the consent of the cluster, and no namespace needs a label. Once it is on, the Deployments and StatefulSets of every namespace are in scope, but those of `kube-system`, `kube-public`, `kube-node-lease`, `argocd`, `flux-system`, the release namespace and `exclude.namespaces`, which the agent never touches. Turning it on changes no pod by itself: the agent acts only on the workloads Onicost serves it, with the values Onicost validated after the observation period.
 
 ```bash
 helm upgrade onicost-agent oci://ghcr.io/onicost/charts/onicost-agent --version <version> \
   --namespace onicost --reset-then-reuse-values --set autoresize.enabled=true
-kubectl label namespace <namespace> onicost.com/autoresize=enabled
 ```
 
 The agent then lowers the requests of the running pods in place, one step at a time, a canary pod first, and watches them: on an OOM kill, restarts, throttling, failing probes or a resize refused, it puts the values of the pod template back and freezes the workload. The admission webhook gives a new pod (a rollout, a scale-up, a node lost) the last validated values of its workload, so that it does not start again from the values of its template. The Deployments and StatefulSets are never changed: Argo CD and Flux see no drift.
+
+Upgrading from the chart 0.7.0, where the mode acted only in the namespaces labelled `onicost.com/autoresize=enabled`: from 0.8.0, every namespace is in scope once `autoresize.enabled` is set, labelled or not. To keep some namespaces out, list them in `exclude.namespaces` in the same upgrade, or turn their switch off in the app. The label has no effect anymore and can be removed.
 
 Rights added by the mode, and why:
 
@@ -73,12 +74,14 @@ The agent never updates nor deletes a pod, never writes a Deployment, a Stateful
 The mode also renders:
 
 - the Service `<release>-autoresize`, port `443` to the port `9443` of the agent;
-- the MutatingWebhookConfiguration `<release>-autoresize`, called on the `CREATE` of pods only, in the namespaces labelled `onicost.com/autoresize=enabled` only, never the release namespace nor `kube-system` even labelled, with `failurePolicy: Ignore`, `timeoutSeconds: 2`, `sideEffects: None` and `reinvocationPolicy: Never`. The webhook never refuses a pod: when the agent is down, slow or in doubt, the pod is created with the values of its template, and only the gain is lost;
+- the MutatingWebhookConfiguration `<release>-autoresize`, called on the `CREATE` of pods only, with `failurePolicy: Ignore`, `timeoutSeconds: 2`, `sideEffects: None` and `reinvocationPolicy: Never`. It sees the creation of every pod of the cluster, but in `kube-system`, `kube-public`, `kube-node-lease`, `argocd`, `flux-system`, the release namespace and `exclude.namespaces`: a `NotIn` on `kubernetes.io/metadata.name` keeps the API server from even calling it there. The agent answers from its caches, without a call to the Kubernetes API, and leaves unchanged the pods of the workloads Onicost does not serve it. The webhook never refuses a pod: when the agent is down, slow or in doubt, the pod is created with the values of its template after 2 s at most, and only the gain is lost;
 - the Secret `<release>-autoresize-tls`, with a certificate for `<release>-autoresize.<namespace>.svc` and its CA, generated by Helm for 10 years and kept across upgrades: the chart reads it back with `lookup`. To renew it, delete the Secret and upgrade; the agent reads the new one within two minutes. `helm template` and `--dry-run=client` cannot read it back and generate a new one at each render: with a tool that renders the chart that way, such as Argo CD, ignore the differences on the data of this Secret and on the `caBundle` of the MutatingWebhookConfiguration;
 - with `networkPolicy.enabled`, an ingress rule on TCP `9443` from any source: the API server calls the webhook from an address the chart does not know, often outside the pod network.
 
+To leave a namespace or a workload alone, turn its switch off on the Auto-resize page of the Onicost app: its workloads go back to the values of their templates, in place, then nothing changes them until the switch is on again. With GitOps, annotate a Deployment or a StatefulSet `onicost.com/autoresize: ignore` instead: the agent leaves it alone, whatever its switch.
+
 To stop the mode:
 
-1. Use the emergency stop of the Onicost app first, for the organization or the cluster: the workloads go back to the values of their templates, in place, and the webhook stops changing new pods. For one workload, annotate it `onicost.com/autoresize: ignore`.
+1. Use **Stop all** (« Tout arrêter » in French) on the Auto-resize page of the Onicost app first: every workload of the organization goes back to the values of its template, in place, and the webhook stops changing new pods, new namespaces included, until **Resume** (« Reprendre »). The switches keep their state.
 2. Then turn the mode off with `--set autoresize.enabled=false`: it removes the rights, the Role, the webhook, its Service and its Secret.
 3. When the mode was turned off before the restore, the agent can no longer put the values back: the pods keep their lowered values until they are recreated. Recreate them with `kubectl rollout restart deployment/<name> --namespace <namespace>`, or `statefulset/<name>`, for each workload of the journal of the app.

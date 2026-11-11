@@ -352,10 +352,11 @@ EOF
   --show-only templates/autoresize-role.yaml | grep -Ev '^(---| *#|apiVersion:|  labels:|    (app.kubernetes.io|helm.sh)/)' | grep -v '^ *$')"
 
 # The webhook never blocks a pod: failurePolicy Ignore, a 2 s timeout, no side effect, no reinvocation, the CREATE of
-# pods only, the labelled namespaces only, never the release namespace nor kube-system. The caBundle is the CA of the
-# Secret, which signed a certificate of <service>.<namespace>.svc.
+# pods only, in every namespace without a label to select it, but the release namespace, the namespaces the agent never
+# touches and exclude.namespaces, each once. The caBundle is the CA of the Secret, which signed a certificate of
+# <service>.<namespace>.svc.
 webhook=$(helm template onicost-agent "$chart" "${endpoint[@]}" --namespace payments-ops --set autoresize.enabled=true \
-  --show-only templates/autoresize-webhook.yaml)
+  --set 'exclude.namespaces={monitoring,kube-system,payments-ops}' --show-only templates/autoresize-webhook.yaml)
 same 'MutatingWebhookConfiguration' "$(cat <<'EOF'
 webhooks:
   - name: pods.autoresize.onicost.com
@@ -378,16 +379,33 @@ webhooks:
         operations: [CREATE]
         resources: [pods]
         scope: Namespaced
-    # Only the namespaces labelled for the mode, never the agent's own nor kube-system, even labelled.
+    # Every namespace but the agent's own, the ones the agent never touches and exclude.namespaces, which the API
+    # server does not call the webhook for.
     namespaceSelector:
-      matchLabels:
-        onicost.com/autoresize: enabled
       matchExpressions:
         - key: kubernetes.io/metadata.name
           operator: NotIn
-          values: ["payments-ops", kube-system]
+          values:
+            - "payments-ops"
+            - "kube-system"
+            - "kube-public"
+            - "kube-node-lease"
+            - "argocd"
+            - "flux-system"
+            - "monitoring"
 EOF
 )" "$(sed -n '/^webhooks:/,$p' <<< "$webhook" | grep -v 'caBundle:')"
+# No label selects the namespaces, whatever the values: no matchLabels in the namespaceSelector, with the default values
+# and with those of values-all.yaml.
+for args in "--set autoresize.enabled=true" "-f scripts/values-all.yaml"; do
+  # shellcheck disable=SC2086
+  selector=$(helm template onicost-agent "$chart" "${endpoint[@]}" $args --show-only templates/autoresize-webhook.yaml \
+    | sed -n '/^    namespaceSelector:$/,$p')
+  if [[ -z $selector ]] || grep -q 'matchLabels' <<< "$selector"; then
+    echo "the namespaceSelector of the webhook selects labelled namespaces ($args)" >&2
+    exit 1
+  fi
+done
 same 'Service of the webhook' "$(cat <<'EOF'
 spec:
   type: ClusterIP
