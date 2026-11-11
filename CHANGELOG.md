@@ -4,8 +4,11 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-11
+
 ### Changed
 
+- The chart deploys the agent 0.8.0, image `ghcr.io/onicost/onicost-agent:0.8.0`, which no longer needs the label of namespace for the auto-resize. Upgrading from 0.7.0 keeps the values (`--reset-then-reuse-values`).
 - With `autoresize.enabled`, the MutatingWebhookConfiguration no longer selects the namespaces labelled `onicost.com/autoresize=enabled`: its `namespaceSelector` has no `matchLabels`, only a `NotIn` on `kubernetes.io/metadata.name` with the release namespace, the namespaces the agent never touches (`kube-system`, `kube-public`, `kube-node-lease`, `argocd`, `flux-system`) and `exclude.namespaces`, so that the API server does not call the webhook there. The webhook thus sees the creation of the pods of every other namespace, still with `failurePolicy: Ignore` and `timeoutSeconds: 2`. A cluster that turned the mode on with the chart 0.7.0 for a few labelled namespaces has every namespace in scope after the upgrade: list the others in `exclude.namespaces`, or turn their switch off in the app. The README drops the label step and describes the switches, **Stop all** and the annotation `onicost.com/autoresize: ignore`; `scripts/check.sh` checks the rendered selector.
 
 ## [0.7.0] - 2026-11-09
@@ -131,7 +134,8 @@ Never published: these changes ship with 0.3.0.
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.7.0...HEAD
+[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.8.0...HEAD
+[0.8.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.7.0...onicost-agent-0.8.0
 [0.7.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.6.0...onicost-agent-0.7.0
 [0.6.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.1...onicost-agent-0.6.0
 [0.5.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.0...onicost-agent-0.5.1
