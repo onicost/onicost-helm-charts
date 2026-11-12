@@ -4,8 +4,11 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-12
+
 ### Fixed
 
+- The chart deploys the agent 0.8.1, image `ghcr.io/onicost/onicost-agent:0.8.1`, the same code as 0.8.0 under the version of the chart.
 - On AKS, an upgrade with Helm 4 failed on `conflict with "admissionsenforcer" ... namespaceSelector`: the Admissions Enforcer of AKS adds its own exclusions to the `namespaceSelector` of every webhook and becomes a manager of that field, which a server-side apply then refuses to change. The MutatingWebhookConfiguration of the auto-resize now carries `admissions.enforcer/disabled: "true"` and excludes the namespaces AKS manages itself (`control-plane NotIn [true]`, `kubernetes.azure.com/managedby NotIn [aks]`). An install already touched by the enforcer needs `--force-conflicts` once, on the upgrade to this version.
 
 ## [0.8.0] - 2026-11-11
@@ -138,7 +141,8 @@ Never published: these changes ship with 0.3.0.
 - Values: `endpoint` (required), `token.existingSecret`, `token.secretKey`, `kubelet.insecureSkipVerify`, `scrapeInterval`, `exclude.namespaces`, `exclude.labelKeys`, `proxy.url`, `image.repository`, `image.tag`, `image.pullPolicy`, `resources`, and the standard pod keys `imagePullSecrets`, `podAnnotations`, `podLabels`, `priorityClassName`, `nodeSelector`, `tolerations`, `affinity`. `values.schema.json` rejects any unknown key at the top level and in `token`, `kubelet`, `exclude`, `proxy`, `image` and the items of `imagePullSecrets`, as well as any value of the wrong type; `resources`, `affinity` and `tolerations` follow the Kubernetes objects and are not checked key by key.
 - `/healthz` and `/readyz` probes and Prometheus metrics on `/metrics`, port `8080`.
 
-[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.8.0...HEAD
+[Unreleased]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.8.1...HEAD
+[0.8.1]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.8.0...onicost-agent-0.8.1
 [0.8.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.7.0...onicost-agent-0.8.0
 [0.7.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.6.0...onicost-agent-0.7.0
 [0.6.0]: https://github.com/onicost/onicost-helm-charts/compare/onicost-agent-0.5.1...onicost-agent-0.6.0
