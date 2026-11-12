@@ -4,6 +4,10 @@ All notable changes to this repository are documented here. The format follows [
 
 ## [Unreleased]
 
+### Fixed
+
+- On AKS, an upgrade with Helm 4 failed on `conflict with "admissionsenforcer" ... namespaceSelector`: the Admissions Enforcer of AKS adds its own exclusions to the `namespaceSelector` of every webhook and becomes a manager of that field, which a server-side apply then refuses to change. The MutatingWebhookConfiguration of the auto-resize now carries `admissions.enforcer/disabled: "true"` and excludes the namespaces AKS manages itself (`control-plane NotIn [true]`, `kubernetes.azure.com/managedby NotIn [aks]`). An install already touched by the enforcer needs `--force-conflicts` once, on the upgrade to this version.
+
 ## [0.8.0] - 2026-11-11
 
 ### Changed

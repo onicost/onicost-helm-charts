@@ -68,6 +68,11 @@ metadata:
   name: {{ $name }}
   labels:
     {{- include "onicost-agent.labels" . | nindent 4 }}
+  annotations:
+    # On AKS, the Admissions Enforcer would add its own exclusions to the namespaceSelector and become a manager of
+    # that field, which a server-side apply of Helm 4 then refuses to change on the next upgrade. The selector below
+    # excludes the namespaces AKS manages itself, so the enforcer has nothing to add.
+    admissions.enforcer/disabled: "true"
 webhooks:
   - name: pods.autoresize.onicost.com
     admissionReviewVersions: [v1]
@@ -100,4 +105,11 @@ webhooks:
             {{- range $excluded }}
             - {{ . | quote }}
             {{- end }}
+        # The namespaces AKS manages, those its Admissions Enforcer excludes from every webhook.
+        - key: control-plane
+          operator: NotIn
+          values: ["true"]
+        - key: kubernetes.azure.com/managedby
+          operator: NotIn
+          values: ["aks"]
 {{- end }}

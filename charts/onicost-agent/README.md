@@ -60,6 +60,8 @@ The agent then lowers the requests of the running pods in place, one step at a t
 
 Upgrading from the chart 0.7.0, where the mode acted only in the namespaces labelled `onicost.com/autoresize=enabled`: from 0.8.0, every namespace is in scope once `autoresize.enabled` is set, labelled or not. To keep some namespaces out, list them in `exclude.namespaces` in the same upgrade, or turn their switch off in the app. The label has no effect anymore and can be removed.
 
+On AKS, the Admissions Enforcer adds its own exclusions to the `namespaceSelector` of every admission webhook. The webhook of the chart excludes the same namespaces itself (`control-plane=true`, `kubernetes.azure.com/managedby=aks`) and asks the enforcer to leave it alone (`admissions.enforcer/disabled: "true"`). An install the enforcer already changed (the chart 0.7.0 or 0.8.0 installed with Helm 4) fails its next upgrade on `conflict with "admissionsenforcer"`: run that upgrade once with `--force-conflicts`.
+
 Rights added by the mode, and why:
 
 | Rule | Why |

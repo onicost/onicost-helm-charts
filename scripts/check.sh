@@ -393,8 +393,21 @@ webhooks:
             - "argocd"
             - "flux-system"
             - "monitoring"
+        # The namespaces AKS manages, those its Admissions Enforcer excludes from every webhook.
+        - key: control-plane
+          operator: NotIn
+          values: ["true"]
+        - key: kubernetes.azure.com/managedby
+          operator: NotIn
+          values: ["aks"]
 EOF
 )" "$(sed -n '/^webhooks:/,$p' <<< "$webhook" | grep -v 'caBundle:')"
+# On AKS, the Admissions Enforcer leaves the webhook alone, or it would own the namespaceSelector and an upgrade with
+# Helm 4 would fail on a conflict.
+if ! grep -q '^    admissions.enforcer/disabled: "true"$' <<< "$webhook"; then
+  echo "the webhook does not opt out of the AKS Admissions Enforcer" >&2
+  exit 1
+fi
 # No label selects the namespaces, whatever the values: no matchLabels in the namespaceSelector, with the default values
 # and with those of values-all.yaml.
 for args in "--set autoresize.enabled=true" "-f scripts/values-all.yaml"; do
